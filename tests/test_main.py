@@ -1,7 +1,6 @@
 import pytest
-from cc2imgcap import hello_world
+from cc2imgcap import cc2imgcap
 
 
-@pytest.mark.parametrize("message", ["hello", "world"])
-def test_hello_world(message):
-    hello_world(message)
+def test_hello_world():
+    print("hi")
