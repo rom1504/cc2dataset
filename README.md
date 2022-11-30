@@ -18,7 +18,10 @@ pip install cc2imgcap
 ## Python examples
 
 Checkout these examples:
-* [run_on_spark.py](examples/run_on_spark.py) it shows how to bring your own spark session
+* [run_on_spark.py](examples/run_on_spark.py) it shows how to bring your own spark session and run cc2imgcap
+* [dedup_example.py](dedup_example.py) this is a pure pyspark small script, calling deduplication with optimized parameters
+
+It is recommended to first run run_on_spark.py to get the raw collection then run the deduplication to remove the duplicated entries.
 
 ## API
 
@@ -26,6 +29,7 @@ This module exposes a single function `cc2imgcap` which takes the same arguments
 * **output_path** the output path, should probably start with s3://. (*required*)
 * **wat_index_count** the number of wat index files to read, can be None for all. (*default 1*)
 * **wat_count** the number of wat files to read, can be None for all, will randomly subsample if present. (*default 100*)
+* **wat_per_output_file** number of wat file per output parquet file. (*default 100*)
 
 ## For development
 

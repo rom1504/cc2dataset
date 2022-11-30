@@ -63,12 +63,14 @@ def url_is_img(url):
     return rsp and valid_http
 
 
-def process_wat(path, output_path):
+def process_wats(paths, output_path):
     """Process a single wat file"""
     ret = {}
     s = timer()
-    with fsspec.open(path, "rb") as f:
-        all_img_records = extract_imgs(f)
+    all_img_records = []
+    for path in paths:
+        with fsspec.open(path, "rb") as f:
+            all_img_records.extend(extract_imgs(f))
     e = timer()
     tot_read_time = e - s
     ret["read_time"] = tot_read_time
@@ -124,23 +126,23 @@ def read_wat_index_files(shard_count=None, wat_count=None):
     return all_wats
 
 
-def cc2imgcap(output_path, wat_index_count=1, wat_count=100):
+def cc2imgcap(output_path, wat_index_count=1, wat_count=100, wat_per_output_file=100):
     """Convert common crawl to image caption set"""
     build_spark_session()
 
     sc = SparkContext.getOrCreate()
     wat_index_files = read_wat_index_files(wat_index_count, wat_count)
     wat_count = len(wat_index_files)
-    wat_rdd = sc.parallelize(wat_index_files, wat_count)
+    wat_rdd = sc.parallelize(wat_index_files, wat_count // wat_per_output_file)
     job_id = uuid.uuid4()
     logger.info(f"JOB ID: {job_id}")
     full_output_path = f"{output_path}/{job_id}"
     logger.info(f"Writing in: {full_output_path}")
 
     def extract(i, x):
-        x = list(x)
-        process_wat("s3://commoncrawl/" + x[0], output_path=f"{full_output_path}/{i}")
-        return [0]
+        x = ["s3://commoncrawl/"+e for e in x]
+        process_wats(x, output_path=f"{full_output_path}/{i}")
+        return [0] * len(x)
 
     output = wat_rdd.mapPartitionsWithIndex(extract)
     s = time.time()
