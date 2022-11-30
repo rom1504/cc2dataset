@@ -15,6 +15,9 @@ from pyspark import SparkContext
 import random
 import uuid
 import time
+from pyspark.sql.functions import udf, explode, col
+from pyspark.sql.types import StringType, StructField, StructType, ArrayType
+
 
 
 def extract_imgs(stream: BinaryIO):
@@ -62,9 +65,9 @@ def url_is_img(url):
     valid_http = rsp.startswith("http")
     return rsp and valid_http
 
-
-def process_wat(path, output_path):
+def process_wat(s: str) -> pd.DataFrame:
     """Process a single wat file"""
+    path = s
     ret = {}
     s = timer()
     with fsspec.open(path, "rb") as f:
@@ -73,16 +76,13 @@ def process_wat(path, output_path):
     tot_read_time = e - s
     ret["read_time"] = tot_read_time
     s = timer()
-    df = pd.DataFrame.from_records(all_img_records)
 
     logger.info(f"Took {tot_read_time} to parse")
-    with fsspec.open(f"{output_path}.parquet", "wb") as f2:
-        df.to_parquet(f2)
     e = timer()
     tot_write_time = e - s
     ret["write_time"] = tot_write_time
     logger.info(f"Took {tot_write_time} to write to S3")
-    return ret
+    return [(e["url"], e["alt"], e["uid"]) for e in all_img_records]
 
 
 def build_spark_session():
@@ -96,6 +96,7 @@ def build_spark_session():
             .appName("spark-stats")
             .getOrCreate()
         )
+    return spark
 
 
 def get_cc_wat_links():
@@ -126,25 +127,24 @@ def read_wat_index_files(shard_count=None, wat_count=None):
 
 def cc2imgcap(output_path, wat_index_count=1, wat_count=100):
     """Convert common crawl to image caption set"""
-    build_spark_session()
+    spark = build_spark_session()
 
-    sc = SparkContext.getOrCreate()
     wat_index_files = read_wat_index_files(wat_index_count, wat_count)
     wat_count = len(wat_index_files)
-    wat_rdd = sc.parallelize(wat_index_files, wat_count)
+    wat_df = spark.createDataFrame([("s3://commoncrawl/"+w,) for w in wat_index_files], ["path"])
     job_id = uuid.uuid4()
     logger.info(f"JOB ID: {job_id}")
     full_output_path = f"{output_path}/{job_id}"
     logger.info(f"Writing in: {full_output_path}")
 
-    def extract(i, x):
-        x = list(x)
-        process_wat("s3://commoncrawl/" + x[0], output_path=f"{full_output_path}/{i}")
-        return [0]
+    process_wat_udf = udf(process_wat, ArrayType(StructType([StructField("url", StringType(), True), StructField("alt", StringType(), True), StructField("uid", StringType(), True)])))
 
-    output = wat_rdd.mapPartitionsWithIndex(extract)
+    exploded = explode(process_wat_udf("path")).alias("exploded") 
+    expanded = [col("exploded").getItem(k).alias(k) for k in ["url", "alt", "uid"]]
+    wat_df = wat_df.select(exploded).select(*expanded)
+
     s = time.time()
-    output.collect()
+    wat_df.write.parquet(output_path+"/"+str(job_id))
     e = time.time()
     print("Took ", e - s, "Seconds")
 

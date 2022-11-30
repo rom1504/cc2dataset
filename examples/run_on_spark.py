@@ -24,9 +24,16 @@ if __name__ == "__main__":
         .config("spark.task.cpus", "1")
         .config("spark.executor.memoryOverhead", "16GB")
         .config("spark.task.maxFailures", "2")
+        .config('spark.jars.packages', 'org.apache.hadoop:hadoop-aws:3.3.1')
+         # change to the appropriate auth method, see https://hadoop.apache.org/docs/stable/hadoop-aws/tools/hadoop-aws/index.html
+        .config('spark.hadoop.fs.s3a.aws.credentials.provider', 'com.amazonaws.auth.InstanceProfileCredentialsProvider')
+        .config('fs.s3a.threads.max', '96')
+        .config('fs.s3a.connection.maximum', '96')
+        .config('fs.s3a.block.size', '1024')
+        .config('fs.s3a.fast.upload.buffer', 'bytebuffer')
         .master("spark://cpu128-dy-c6i-32xlarge-11:7077")  # this should be set to the spark master url
         .appName("spark-stats")
         .getOrCreate()
     )
 
-    cc2imgcap("s3://s-laion/cc-proc-test/outputs", wat_index_count=1, wat_count=2048)
+    cc2imgcap("s3a://s-laion/cc-proc-test/outputs", wat_index_count=1, wat_count=512)
