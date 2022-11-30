@@ -6,10 +6,10 @@
 Easily convert common crawl to image caption set using pyspark.
 
 Common crawl has [7.5M warc files](https://commoncrawl.org/the-data/get-started/). They provide links of the web.
-This simple tool allows you to process one warc in about 40s and get image link along with the alt text.
+This simple tool allows you to process one warc in about 50s and get image link along with the alt text.
 
-This makes it possible to do the first step of building a dataset like [laion5B](https://laion.ai/blog/laion-5b/) in 100k cpu core hours.
-That's $4k using aws EC2.
+This makes it possible to do the first step of building a dataset like [laion5B](https://laion.ai/blog/laion-5b/) in 70k cpu core hours. (`5*10^6*50/(3600)`)
+That's $2.8k using aws EC2 (0.04$/core hour)
 
 ## Install
 
