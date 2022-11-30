@@ -15,6 +15,7 @@ if __name__ == "__main__":
         .config('spark.jars.packages', 'org.apache.hadoop:hadoop-aws:3.3.1,org.apache.spark:spark-hadoop-cloud_2.13:3.3.1')
          # change to the appropriate auth method, see https://hadoop.apache.org/docs/stable/hadoop-aws/tools/hadoop-aws/index.html
         .config('spark.hadoop.fs.s3a.aws.credentials.provider', 'com.amazonaws.auth.InstanceProfileCredentialsProvider')
+        # ton of options to try and make s3a run faster
         .config('spark.hadoop.fs.s3a.threads.max', '512')
         .config('spark.hadoop.fs.s3a.connection.maximum', '2048')
         .config('spark.hadoop.fs.s3a.fast.upload', 'true')
