@@ -9,7 +9,7 @@ Common crawl has [7.5M warc files](https://commoncrawl.org/the-data/get-started/
 This simple tool allows you to process one warc in about 50s and get image link along with the alt text.
 
 This makes it possible to do the first step of building a dataset like [laion5B](https://laion.ai/blog/laion-5b/) in 70k cpu core hours. (`5*10^6*50/(3600)`)
-That's $2.8k using aws EC2 (0.04$/core hour)
+That's `$2.8k` using aws EC2 (0.04$/core hour)
 
 ## Install
 
