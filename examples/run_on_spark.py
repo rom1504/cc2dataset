@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
     spark = (
         SparkSession.builder.config("spark.submit.deployMode", "client")
-        .config("spark.executor.memory", "48GB")
+        .config("spark.executor.memory", "80GB")
         .config("spark.executor.cores", "128")  # this can be set to the number of cores of the machine
         .config("spark.task.cpus", "1")
         .config("spark.executor.memoryOverhead", "16GB")
@@ -29,4 +29,4 @@ if __name__ == "__main__":
         .getOrCreate()
     )
 
-    cc2imgcap("s3://s-laion/cc-proc-test/outputs", wat_index_count=1, wat_count=2048)
+    cc2imgcap("s3://s-laion/cc-proc-test/outputs", wat_index_count=None, wat_count=500000)
