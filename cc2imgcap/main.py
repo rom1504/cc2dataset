@@ -134,10 +134,12 @@ def cc2imgcap(output_path, wat_index_count=1, wat_count=100):
     wat_rdd = sc.parallelize(wat_index_files, wat_count)
     job_id = uuid.uuid4()
     logger.info(f"JOB ID: {job_id}")
+    full_output_path = f"{output_path}/{job_id}"
+    logger.info(f"Writing in: {full_output_path}")
 
     def extract(i, x):
         x = list(x)
-        process_wat("s3://commoncrawl/" + x[0], output_path=f"{output_path}/{job_id}/{i}")
+        process_wat("s3://commoncrawl/" + x[0], output_path=f"{full_output_path}/{i}")
         return [0]
 
     output = wat_rdd.mapPartitionsWithIndex(extract)

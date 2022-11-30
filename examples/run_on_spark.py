@@ -29,4 +29,4 @@ if __name__ == "__main__":
         .getOrCreate()
     )
 
-    cc2imgcap("s3://s-laion/cc-proc-test/outputs", wat_index_count=1, wat_count=100)
+    cc2imgcap("s3://s-laion/cc-proc-test/outputs", wat_index_count=1, wat_count=2048)
