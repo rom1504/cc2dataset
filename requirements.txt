@@ -4,3 +4,6 @@ fsspec
 pandas
 loguru
 pyarrow
+fastwarc
+s3fs
+fire
