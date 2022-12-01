@@ -5,16 +5,15 @@ from fastwarc.warc import ArchiveIterator, WarcRecordType
 from typing import BinaryIO
 import simdjson
 import fsspec
-import pandas as pd
 from timeit import default_timer as timer
 from loguru import logger
 import hashlib
 from multiprocessing.pool import ThreadPool
-from pyspark.sql import SparkSession
 from pyspark import SparkContext
 import random
 import uuid
 import time
+from .spark_session_builder import build_spark_session
 
 
 def extract_imgs(stream: BinaryIO):
@@ -63,39 +62,18 @@ def url_is_img(url):
     return rsp and valid_http
 
 
-def process_wat(path, output_path):
+def process_wat(path):
     """Process a single wat file"""
     ret = {}
     s = timer()
     with fsspec.open(path, "rb") as f:
-        all_img_records = extract_imgs(f)
+        for e in extract_imgs(f):
+            yield (e["uid"], e["url"], e["alt"])
     e = timer()
     tot_read_time = e - s
     ret["read_time"] = tot_read_time
     s = timer()
-    df = pd.DataFrame.from_records(all_img_records)
-
     logger.info(f"Took {tot_read_time} to parse")
-    with fsspec.open(f"{output_path}.parquet", "wb") as f2:
-        df.to_parquet(f2)
-    e = timer()
-    tot_write_time = e - s
-    ret["write_time"] = tot_write_time
-    logger.info(f"Took {tot_write_time} to write to S3")
-    return ret
-
-
-def build_spark_session():
-    spark = SparkSession.getActiveSession()
-
-    if spark is None:
-        print("No pyspark session found, creating a new one!")
-        spark = (
-            SparkSession.builder.config("spark.driver.memory", "16G")
-            .master("local[4]")
-            .appName("spark-stats")
-            .getOrCreate()
-        )
 
 
 def get_cc_wat_links():
@@ -124,9 +102,9 @@ def read_wat_index_files(shard_count=None, wat_count=None):
     return all_wats
 
 
-def cc2imgcap(output_path, wat_index_count=1, wat_count=100):
+def cc2imgcap(output_path, wat_index_count=1, wat_count=100, master="local", num_cores=128, mem_gb=256):
     """Convert common crawl to image caption set"""
-    build_spark_session()
+    spark = build_spark_session(master, num_cores, mem_gb)
 
     sc = SparkContext.getOrCreate()
     wat_index_files = read_wat_index_files(wat_index_count, wat_count)
@@ -137,16 +115,22 @@ def cc2imgcap(output_path, wat_index_count=1, wat_count=100):
     full_output_path = f"{output_path}/{job_id}"
     logger.info(f"Writing in: {full_output_path}")
 
-    def extract(i, x):
+    def extract(x):
         x = list(x)
-        process_wat("s3://commoncrawl/" + x[0], output_path=f"{full_output_path}/{i}")
-        return [0]
+        yield from process_wat("s3://commoncrawl/" + x[0])
 
-    output = wat_rdd.mapPartitionsWithIndex(extract)
+    output = wat_rdd.mapPartitions(extract)
     s = time.time()
-    output.collect()
+    df = output.toDF(["uid", "url", "alt"])
+
+    uniques = df.dropDuplicates(["uid"])
+    repartitioned = uniques.repartition(max(256, wat_count // 100))
+    repartitioned.write.parquet(full_output_path)
     e = time.time()
     print("Took ", e - s, "Seconds")
+    print("Computing size")
+    df = spark.read.parquet(full_output_path)
+    print("Size: ", df.count())
 
 
 def main():
