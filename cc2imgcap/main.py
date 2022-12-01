@@ -8,10 +8,11 @@ import fsspec
 from timeit import default_timer as timer
 from loguru import logger
 import hashlib
+import datetime
 from multiprocessing.pool import ThreadPool
 from pyspark import SparkContext
+from pyspark.sql.functions import rand
 import random
-import uuid
 import math
 import time
 from .spark_session_builder import build_spark_session
@@ -105,13 +106,19 @@ def read_wat_index_files(shard_count=None, wat_count=None):
             all_wats.extend(wats)
     if wat_count is not None:
         all_wats = random.choices(all_wats, k=wat_count)
+    else:
+        # shuffle to increase duplication over each part hence reduce size of each part after duplication
+        random.shuffle(all_wats)
     return all_wats
 
 
-def deduplicate_repartition_count(df, output_path, wat_count, spark):
+def deduplicate_repartition_count(df, output_path, wat_count, spark, shuffle=False):
+    """Deduplicate and repartition"""
     uniques = df.dropDuplicates(["uid"])
     repartitioned = uniques.repartition(max(256, wat_count // 100))
     s = time.time()
+    if shuffle:
+        repartitioned = repartitioned.sort(rand())
     repartitioned.write.parquet(output_path)
     e = time.time()
     print("Took ", e - s, "Seconds")
@@ -120,7 +127,7 @@ def deduplicate_repartition_count(df, output_path, wat_count, spark):
     print("Size: ", df.count())
 
 
-def process_one_part(output_path, wat_index_files, spark):
+def process_one_part(output_path, wat_index_files, spark, shuffle=False):
     """Process one part"""
     sc = SparkContext.getOrCreate()
     wat_count = len(wat_index_files)
@@ -133,10 +140,10 @@ def process_one_part(output_path, wat_index_files, spark):
     output = wat_rdd.mapPartitions(extract)
     df = output.toDF(["uid", "url", "alt"])
 
-    deduplicate_repartition_count(df, output_path, wat_count, spark)
+    deduplicate_repartition_count(df, output_path, wat_count, spark, shuffle)
 
 
-def process_multi_part(output_path, wat_index_files, spark, multipart):
+def process_multi_part(output_path, wat_index_files, spark, multipart, shuffle):
     """Process multi part"""
     wat_count = len(wat_index_files)
     wat_per_part = math.ceil(wat_count / multipart)
@@ -146,7 +153,7 @@ def process_multi_part(output_path, wat_index_files, spark, multipart):
         end = (i + 1) * wat_per_part
         part_path = f"{output_path}/part_{i}"
         part_paths.append(part_path)
-        logger.info(f"Processing part {i} from {start} to {end}")
+        logger.info(f"Processing part {i} from {start} to {end} into {part_path}")
         process_one_part(part_path, wat_index_files[start:end], spark)
     logger.info("Merging parts")
     df = None
@@ -156,23 +163,40 @@ def process_multi_part(output_path, wat_index_files, spark, multipart):
         else:
             df = df.union(spark.read.parquet(part_path))
 
-    deduplicate_repartition_count(df, output_path + "/merged", wat_count, spark)
+    deduplicate_repartition_count(df, output_path + "/merged", wat_count, spark, shuffle)
 
 
-def cc2imgcap(output_path, wat_index_count=1, wat_count=100, master="local", num_cores=128, mem_gb=256, multipart=None):
+def get_date_str():
+    return datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+
+
+def cc2imgcap(
+    output_path,
+    wat_index_count=1,
+    wat_count=100,
+    master="local",
+    num_cores=128,
+    mem_gb=256,
+    multipart=None,
+    shuffle=True,
+):
     """Convert common crawl to image caption set"""
+    job_id = get_date_str()
+    logger.info(f"JOB ID: {job_id}")
+    output_path = f"{output_path}/{job_id}"
+    logger.info(f"Writing in: {output_path}")
+
     spark = build_spark_session(master, num_cores, mem_gb)
 
     wat_index_files = read_wat_index_files(wat_index_count, wat_count)
-    job_id = uuid.uuid4()
-    logger.info(f"JOB ID: {job_id}")
-    full_output_path = f"{output_path}/{job_id}"
-    logger.info(f"Writing in: {full_output_path}")
+    # write wat index files to disk in output_path with fsspec
+    with fsspec.open(f"{output_path}/wat_index_files.txt", "w", encoding="utf8") as f:
+        f.write("\n".join(wat_index_files))
 
     if multipart is None:
-        process_one_part(full_output_path, wat_index_files, spark)
+        process_one_part(output_path, wat_index_files, spark, shuffle)
     else:
-        process_multi_part(full_output_path, wat_index_files, spark, multipart)
+        process_multi_part(output_path, wat_index_files, spark, multipart, shuffle)
 
 
 def main():

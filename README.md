@@ -38,6 +38,7 @@ This module exposes a single function `cc2imgcap` which takes the same arguments
 * **num_cores** the number of cores of each spark executor. (*default 128*)
 * **mem_gb** the memory of each spark executor. (*default 256*)
 * **multipart** runs the processing of the specified number of parts, merge at the end (*default None*)
+* **shuffle** randomly shuffle the output right before saving (*default True*)
 
 ## For development
 
