@@ -6,10 +6,14 @@
 Easily convert common crawl to image caption set using pyspark.
 
 Common crawl has [7.5M warc files](https://commoncrawl.org/the-data/get-started/). They provide links of the web.
-This simple tool allows you to process one warc in about 50s and get image link along with the alt text.
+This simple tool allows you to process one warc in about 20s and get image link along with the alt text.
 
-This makes it possible to do the first step of building a dataset like [laion5B](https://laion.ai/blog/laion-5b/) in 70k cpu core hours. (`5*10^6*50/(3600)`)
-That's `$2.8k` using aws EC2 (0.04$/core hour)
+It also runs deduplication against url+text in order to save on output space and speed up the process.
+
+This makes it possible to do the first step of building a dataset like [laion5B](https://laion.ai/blog/laion-5b/) in 30k cpu core hours. (`5*10^6*20/(3600)`)
+That's `$1.2k` using aws EC2 (0.04$/core hour)
+
+`cpu128-dy-c6i-32xlarge` instances are advised.
 
 ## Install
 
@@ -20,12 +24,17 @@ pip install cc2imgcap
 Checkout these examples:
 * [run_on_spark.py](examples/run_on_spark.py) it shows how to bring your own spark session
 
+If you have a slurm cluster, refer to https://gist.github.com/rom1504/67ada3dedbecc113ae2dbdfd9c642d83 to start a spark cluster there.
+
 ## API
 
 This module exposes a single function `cc2imgcap` which takes the same arguments as the command line tool:
 * **output_path** the output path, should probably start with s3://. (*required*)
 * **wat_index_count** the number of wat index files to read, can be None for all. (*default 1*)
 * **wat_count** the number of wat files to read, can be None for all, will randomly subsample if present. (*default 100*)
+* **master** the spark master url. (*default local*)
+* **num_cores** the number of cores of each spark executor. (*default 128*)
+* **mem_gb** the memory of each spark executor. (*default 256*)
 
 ## For development
 
