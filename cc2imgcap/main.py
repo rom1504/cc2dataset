@@ -108,7 +108,7 @@ def read_wat_index_files(shard_count=None, wat_count=None):
     return all_wats
 
 
-def deduplicate_repartition_count(df, output_path, wat_count):
+def deduplicate_repartition_count(df, output_path, wat_count, spark):
     uniques = df.dropDuplicates(["uid"])
     repartitioned = uniques.repartition(max(256, wat_count // 100))
     s = time.time()
@@ -133,7 +133,7 @@ def process_one_part(output_path, wat_index_files):
     output = wat_rdd.mapPartitions(extract)
     df = output.toDF(["uid", "url", "alt"])
 
-    deduplicate_repartition_count(df, output_path, wat_count)
+    deduplicate_repartition_count(df, output_path, wat_count, spark)
 
 
 def process_multi_part(output_path, wat_index_files, spark, multipart):
@@ -156,7 +156,7 @@ def process_multi_part(output_path, wat_index_files, spark, multipart):
         else:
             df = df.union(spark.read.parquet(part_path))
 
-    deduplicate_repartition_count(df, output_path, wat_count)
+    deduplicate_repartition_count(df, output_path, wat_count, spark)
 
 
 def cc2imgcap(output_path, wat_index_count=1, wat_count=100, master="local", num_cores=128, mem_gb=256, multipart=None):
