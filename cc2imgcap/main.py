@@ -111,6 +111,7 @@ def read_wat_index_files(shard_count=None, wat_count=None):
 def deduplicate_repartition_count(df, output_path, wat_count):
     uniques = df.dropDuplicates(["uid"])
     repartitioned = uniques.repartition(max(256, wat_count // 100))
+    s = time.time()
     repartitioned.write.parquet(output_path)
     e = time.time()
     print("Took ", e - s, "Seconds")
