@@ -15,3 +15,4 @@ if __name__ == "__main__":
 
     df = pd.DataFrame(results, columns=["uid", "url", "alt"])
     df.to_parquet(os.getcwd() + "/output.parquet")
+    print(df)
