@@ -5,7 +5,7 @@
 
 Easily convert common crawl to image caption set using pyspark.
 
-Common crawl has [7.5M warc files](https://commoncrawl.org/the-data/get-started/). They provide links of the web.
+Common crawl has [5M wat files](https://commoncrawl.org/the-data/get-started/). They provide links of the web.
 This simple tool allows you to process one warc in about 20s and get image link along with the alt text.
 
 It also runs deduplication against url+text in order to save on output space and speed up the process.
