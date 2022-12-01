@@ -156,7 +156,7 @@ def process_multi_part(output_path, wat_index_files, spark, multipart):
         else:
             df = df.union(spark.read.parquet(part_path))
 
-    deduplicate_repartition_count(df, output_path, wat_count, spark)
+    deduplicate_repartition_count(df, output_path + "/merged", wat_count, spark)
 
 
 def cc2imgcap(output_path, wat_index_count=1, wat_count=100, master="local", num_cores=128, mem_gb=256, multipart=None):
