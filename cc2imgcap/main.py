@@ -12,6 +12,7 @@ from multiprocessing.pool import ThreadPool
 from pyspark import SparkContext
 import random
 import uuid
+import math
 import time
 from .spark_session_builder import build_spark_session
 
@@ -107,35 +108,70 @@ def read_wat_index_files(shard_count=None, wat_count=None):
     return all_wats
 
 
-def cc2imgcap(output_path, wat_index_count=1, wat_count=100, master="local", num_cores=128, mem_gb=256):
-    """Convert common crawl to image caption set"""
-    spark = build_spark_session(master, num_cores, mem_gb)
+def deduplicate_repartition_count(df, output_path, wat_count):
+    uniques = df.dropDuplicates(["uid"])
+    repartitioned = uniques.repartition(max(256, wat_count // 100))
+    repartitioned.write.parquet(output_path)
+    e = time.time()
+    print("Took ", e - s, "Seconds")
+    print("Computing size")
+    df = spark.read.parquet(output_path)
+    print("Size: ", df.count())
 
+
+def process_one_part(output_path, wat_index_files):
+    """Process one part"""
     sc = SparkContext.getOrCreate()
-    wat_index_files = read_wat_index_files(wat_index_count, wat_count)
     wat_count = len(wat_index_files)
     wat_rdd = sc.parallelize(wat_index_files, wat_count)
-    job_id = uuid.uuid4()
-    logger.info(f"JOB ID: {job_id}")
-    full_output_path = f"{output_path}/{job_id}"
-    logger.info(f"Writing in: {full_output_path}")
 
     def extract(x):
         x = list(x)
         yield from process_wat("s3://commoncrawl/" + x[0])
 
     output = wat_rdd.mapPartitions(extract)
-    s = time.time()
     df = output.toDF(["uid", "url", "alt"])
 
-    uniques = df.dropDuplicates(["uid"])
-    repartitioned = uniques.repartition(max(256, wat_count // 100))
-    repartitioned.write.parquet(full_output_path)
-    e = time.time()
-    print("Took ", e - s, "Seconds")
-    print("Computing size")
-    df = spark.read.parquet(full_output_path)
-    print("Size: ", df.count())
+    deduplicate_repartition_count(df, output_path, wat_count)
+
+
+def process_multi_part(output_path, wat_index_files, spark):
+    """Process multi part"""
+    wat_count = len(wat_index_files)
+    wat_per_part = math.ceil(wat_count / multipart)
+    part_paths = []
+    for i in range(multipart):
+        start = i * wat_per_part
+        end = (i + 1) * wat_per_part
+        part_path = f"{output_path}/part_{i}"
+        part_paths.append(part_path)
+        logger.info(f"Processing part {i} from {start} to {end}")
+        process_one_part(part_path, wat_index_files[start:end])
+    logger.info("Merging parts")
+    df = None
+    for part_path in part_paths:
+        if df is None:
+            df = spark.read.parquet(part_path)
+        else:
+            df = df.union(spark.read.parquet(part_path))
+
+    deduplicate_repartition_count(df, output_path, wat_count)
+
+
+def cc2imgcap(output_path, wat_index_count=1, wat_count=100, master="local", num_cores=128, mem_gb=256, multipart=None):
+    """Convert common crawl to image caption set"""
+    spark = build_spark_session(master, num_cores, mem_gb)
+
+    wat_index_files = read_wat_index_files(wat_index_count, wat_count)
+    job_id = uuid.uuid4()
+    logger.info(f"JOB ID: {job_id}")
+    full_output_path = f"{output_path}/{job_id}"
+    logger.info(f"Writing in: {full_output_path}")
+
+    if multipart is None:
+        process_one_part(full_output_path, wat_index_files)
+    else:
+        process_multi_part(full_output_path, wat_index_files, spark)
 
 
 def main():
