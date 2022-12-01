@@ -35,8 +35,8 @@ def aws_ec2_s3_spark_session(master, num_cores=128, mem_gb=256):
     """Build a spark session on AWS EC2"""
     os.environ["PYSPARK_PYTHON"] = sys.executable
     os.environ["PYSPARK_DRIVER_PYTHON"] = sys.executable
-    main_memory = str(int(mem_gb * 0.8)) + "g"
-    memory_overhead = str(mem_gb - int(mem_gb * 0.8)) + "g"
+    main_memory = str(int(mem_gb * 0.9)) + "g"
+    memory_overhead = str(mem_gb - int(mem_gb * 0.9)) + "g"
     spark = (
         SparkSession.builder.config("spark.submit.deployMode", "client")
         .config("spark.executor.memory", main_memory)
