@@ -135,7 +135,7 @@ def process_one_part(output_path, wat_index_files):
     deduplicate_repartition_count(df, output_path, wat_count)
 
 
-def process_multi_part(output_path, wat_index_files, spark):
+def process_multi_part(output_path, wat_index_files, spark, multipart):
     """Process multi part"""
     wat_count = len(wat_index_files)
     wat_per_part = math.ceil(wat_count / multipart)
@@ -171,7 +171,7 @@ def cc2imgcap(output_path, wat_index_count=1, wat_count=100, master="local", num
     if multipart is None:
         process_one_part(full_output_path, wat_index_files)
     else:
-        process_multi_part(full_output_path, wat_index_files, spark)
+        process_multi_part(full_output_path, wat_index_files, spark, multipart)
 
 
 def main():
