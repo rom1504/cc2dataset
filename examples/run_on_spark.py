@@ -12,5 +12,5 @@ if __name__ == "__main__":
         master="spark://cpu128-dy-r6i-32xlarge-3:7077",
         num_cores=128,
         mem_gb=256,
-        multipart=10,
+        multipart=None,
     )
