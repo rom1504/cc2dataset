@@ -120,7 +120,7 @@ def deduplicate_repartition_count(df, output_path, wat_count, spark):
     print("Size: ", df.count())
 
 
-def process_one_part(output_path, wat_index_files):
+def process_one_part(output_path, wat_index_files, spark):
     """Process one part"""
     sc = SparkContext.getOrCreate()
     wat_count = len(wat_index_files)
@@ -147,7 +147,7 @@ def process_multi_part(output_path, wat_index_files, spark, multipart):
         part_path = f"{output_path}/part_{i}"
         part_paths.append(part_path)
         logger.info(f"Processing part {i} from {start} to {end}")
-        process_one_part(part_path, wat_index_files[start:end])
+        process_one_part(part_path, wat_index_files[start:end], spark)
     logger.info("Merging parts")
     df = None
     for part_path in part_paths:
@@ -170,7 +170,7 @@ def cc2imgcap(output_path, wat_index_count=1, wat_count=100, master="local", num
     logger.info(f"Writing in: {full_output_path}")
 
     if multipart is None:
-        process_one_part(full_output_path, wat_index_files)
+        process_one_part(full_output_path, wat_index_files, spark)
     else:
         process_multi_part(full_output_path, wat_index_files, spark, multipart)
 
