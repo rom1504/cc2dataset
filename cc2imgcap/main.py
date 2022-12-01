@@ -20,30 +20,35 @@ def extract_imgs(stream: BinaryIO):
     """Extract images from a wat file"""
     all_links = []
     total = 0
-    for record in ArchiveIterator(stream, record_types=WarcRecordType.metadata, parse_http=False):
-        try:
-            record_data = simdjson.load(record.reader)  # type: ignore
-        except:  # pylint: disable=bare-except
-            continue
-        # print(record_data)
-        envelope = record_data["Envelope"]
-        payload = envelope["Payload-Metadata"]
-        if "HTTP-Response-Metadata" not in payload:
-            continue
-        http_resp = payload["HTTP-Response-Metadata"]
-        if "HTML-Metadata" not in http_resp:
-            continue
-        metadata = http_resp["HTML-Metadata"]
-        if "Links" not in metadata:
-            continue
+    try:
+        for record in ArchiveIterator(stream, record_types=WarcRecordType.metadata, parse_http=False):
+            try:
+                record_data = simdjson.load(record.reader)  # type: ignore
+            except:  # pylint: disable=bare-except
+                print("A shard record failed")
+                continue
+            # print(record_data)
+            envelope = record_data["Envelope"]
+            payload = envelope["Payload-Metadata"]
+            if "HTTP-Response-Metadata" not in payload:
+                continue
+            http_resp = payload["HTTP-Response-Metadata"]
+            if "HTML-Metadata" not in http_resp:
+                continue
+            metadata = http_resp["HTML-Metadata"]
+            if "Links" not in metadata:
+                continue
 
-        links = metadata["Links"]
-        total += len(links)
+            links = metadata["Links"]
+            total += len(links)
 
-        filtered_links = [{"url": link["url"], "alt": link["alt"]} for link in links if valid_link(link)]
-        for link in filtered_links:
-            link["uid"] = str(hashlib.md5((link["alt"] + link["url"]).encode()).hexdigest())
-        all_links.extend(filtered_links)
+            filtered_links = [{"url": link["url"], "alt": link["alt"]} for link in links if valid_link(link)]
+            for link in filtered_links:
+                link["uid"] = str(hashlib.md5((link["alt"] + link["url"]).encode()).hexdigest())
+            all_links.extend(filtered_links)
+    except:  # pylint: disable=bare-except
+        print("A shard failed")
+        return []
 
     return all_links
 
