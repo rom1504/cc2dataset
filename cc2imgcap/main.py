@@ -57,16 +57,9 @@ def extract_imgs(stream: BinaryIO):
 
 def valid_link(link):
     valid_path = link.get("path", "") == "IMG@/src"
-    valid_img = link.get("url", "").endswith((".png", ".jpg", ".jpeg"))
     valid_alt = len(link.get("alt", "")) > 0
     valid_http = link.get("url", "").startswith("http")
-    return (valid_path or valid_img) and valid_path and valid_http and valid_alt
-
-
-def url_is_img(url):
-    rsp = url.lower().endswith((".png", ".jpg", ".jpeg"))
-    valid_http = rsp.startswith("http")
-    return rsp and valid_http
+    return valid_path and valid_http and valid_alt
 
 
 def process_wat(path):
