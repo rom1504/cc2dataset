@@ -28,9 +28,8 @@ def extract_imgs(stream: BinaryIO):
             try:
                 record_data = simdjson.load(record.reader)  # type: ignore
             except:  # pylint: disable=bare-except
-                print("A shard record failed")
+                logger.info("A shard record failed")
                 continue
-            # print(record_data)
             envelope = record_data["Envelope"]
             payload = envelope["Payload-Metadata"]
             if "HTTP-Response-Metadata" not in payload:
@@ -50,7 +49,7 @@ def extract_imgs(stream: BinaryIO):
                 link["uid"] = str(hashlib.md5((link["alt"] + link["url"]).encode()).hexdigest())
             all_links.extend(filtered_links)
     except:  # pylint: disable=bare-except
-        print("A shard failed to parse")
+        logger.info("A shard failed to parse")
         return []
 
     return all_links
@@ -65,16 +64,24 @@ def valid_link(link):
 
 def process_wat(path):
     """Process a single wat file"""
-    ret = {}
-    s = timer()
+    begin_read = timer()
     with fsspec.open(path, "rb") as f:
-        tf = BytesIO(f.read())
+        for i in range(10):
+            try:
+                tf = BytesIO(f.read())
+                break
+            except Exception as ex:  # pylint: disable=broad-except
+                if i == 9:
+                    logger.info("failed 10 times, skipping ", path)
+                    return
+                logger.info(ex)
+                logger.info(f"retrying reading {i}/10")
+                time.sleep(1)
+
         for e in extract_imgs(tf):
             yield (e["uid"], e["url"], e["alt"])
-    e = timer()
-    tot_read_time = e - s
-    ret["read_time"] = tot_read_time
-    s = timer()
+    end_read = timer()
+    tot_read_time = end_read - begin_read
     logger.info(f"Took {tot_read_time} to parse")
 
 
@@ -116,10 +123,10 @@ def deduplicate_repartition_count(df, output_path, wat_count, spark, shuffle=Fal
         repartitioned = repartitioned.sort(rand())
     repartitioned.write.mode("overwrite").parquet(output_path)
     e = time.time()
-    print("Took ", e - s, "Seconds")
-    print("Computing size")
+    logger.info("Took ", e - s, "Seconds")
+    logger.info("Computing size")
     df = spark.read.parquet(output_path)
-    print("Size: ", df.count())
+    logger.info("Size: ", df.count())
 
 
 def process_one_part(output_path, wat_index_files, spark, shuffle=False):
