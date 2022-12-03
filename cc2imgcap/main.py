@@ -123,10 +123,10 @@ def deduplicate_repartition_count(df, output_path, wat_count, spark, shuffle=Fal
         repartitioned = repartitioned.sort(rand())
     repartitioned.write.mode("overwrite").parquet(output_path)
     e = time.time()
-    logger.info("Took ", e - s, "Seconds")
+    logger.info(f"Took {e - s} seconds")
     logger.info("Computing size")
     df = spark.read.parquet(output_path)
-    logger.info("Size: ", df.count())
+    logger.info(f"Size: {df.count()}")
 
 
 def process_one_part(output_path, wat_index_files, spark, shuffle=False):
