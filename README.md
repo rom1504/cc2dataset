@@ -31,7 +31,7 @@ If you have a slurm cluster, refer to https://gist.github.com/rom1504/67ada3dedb
 ## API
 
 This module exposes a single function `cc2imgcap` which takes the same arguments as the command line tool:
-* **output_path** the output path, should probably start with s3://. (*required*)
+* **output_path** the output path, should probably start with s3://. The output will be written to this path sufixed by the date (*required*)
 * **wat_index_count** the number of wat index files to read, can be None for all. (*default 1*)
 * **wat_count** the number of wat files to read, can be None for all, will randomly subsample if present. (*default 100*)
 * **master** the spark master url. (*default local*)
@@ -39,6 +39,7 @@ This module exposes a single function `cc2imgcap` which takes the same arguments
 * **mem_gb** the memory of each spark executor. (*default 256*)
 * **multipart** runs the processing of the specified number of parts, merge at the end (*default None*)
 * **shuffle** randomly shuffle the output right before saving (*default True*)
+* **resume** the specific path of the output to resume (*default None*)
 
 ## For development
 

@@ -16,6 +16,7 @@ import random
 import math
 import time
 from .spark_session_builder import build_spark_session
+from io import BytesIO
 
 
 def extract_imgs(stream: BinaryIO):
@@ -49,7 +50,7 @@ def extract_imgs(stream: BinaryIO):
                 link["uid"] = str(hashlib.md5((link["alt"] + link["url"]).encode()).hexdigest())
             all_links.extend(filtered_links)
     except:  # pylint: disable=bare-except
-        print("A shard failed")
+        print("A shard failed to parse")
         return []
 
     return all_links
@@ -67,7 +68,8 @@ def process_wat(path):
     ret = {}
     s = timer()
     with fsspec.open(path, "rb") as f:
-        for e in extract_imgs(f):
+        tf = BytesIO(f.read())
+        for e in extract_imgs(tf):
             yield (e["uid"], e["url"], e["alt"])
     e = timer()
     tot_read_time = e - s
@@ -112,7 +114,7 @@ def deduplicate_repartition_count(df, output_path, wat_count, spark, shuffle=Fal
     s = time.time()
     if shuffle:
         repartitioned = repartitioned.sort(rand())
-    repartitioned.write.parquet(output_path)
+    repartitioned.write.mode("overwrite").parquet(output_path)
     e = time.time()
     print("Took ", e - s, "Seconds")
     print("Computing size")
@@ -136,12 +138,26 @@ def process_one_part(output_path, wat_index_files, spark, shuffle=False):
     deduplicate_repartition_count(df, output_path, wat_count, spark, shuffle)
 
 
-def process_multi_part(output_path, wat_index_files, spark, multipart, shuffle):
+def get_last_successful_part(output_path):
+    """Get the last successful part"""
+    output_path = output_path.replace("s3a", "s3")
+    fs, _ = fsspec.core.url_to_fs(output_path)
+    successful_parts = fs.glob(output_path + "/*/_SUCCESS")
+    last_part = sorted([int(e.split("/")[-2].split("_")[-1]) for e in successful_parts])[-1]
+    return last_part
+
+
+def process_multi_part(output_path, wat_index_files, spark, multipart, shuffle, resume):
     """Process multi part"""
+    if resume:
+        start_part = get_last_successful_part(output_path) + 1
+    else:
+        start_part = 0
+
     wat_count = len(wat_index_files)
     wat_per_part = math.ceil(wat_count / multipart)
     part_paths = []
-    for i in range(multipart):
+    for i in range(start_part, multipart):
         start = i * wat_per_part
         end = (i + 1) * wat_per_part
         part_path = f"{output_path}/part_{i}"
@@ -172,24 +188,37 @@ def cc2imgcap(
     mem_gb=256,
     multipart=None,
     shuffle=True,
+    resume=None,
 ):
     """Convert common crawl to image caption set"""
-    job_id = get_date_str()
-    logger.info(f"JOB ID: {job_id}")
-    output_path = f"{output_path}/{job_id}"
+
+    if resume is not None and multipart is None:
+        raise ValueError("Cannot resume without multipart")
+
+    if resume is None:
+        job_id = get_date_str()
+        logger.info(f"JOB ID: {job_id}")
+        output_path = f"{output_path}/{job_id}"
+    else:
+        output_path = resume
+
     logger.info(f"Writing in: {output_path}")
 
     spark = build_spark_session(master, num_cores, mem_gb)
 
-    wat_index_files = read_wat_index_files(wat_index_count, wat_count)
-    # write wat index files to disk in output_path with fsspec
-    with fsspec.open(f"{output_path}/wat_index_files.txt", "w", encoding="utf8") as f:
-        f.write("\n".join(wat_index_files))
+    if resume is None:
+        wat_index_files = read_wat_index_files(wat_index_count, wat_count)
+        # write wat index files to disk in output_path with fsspec
+        with fsspec.open(f"{output_path}/wat_index_files.txt", "w", encoding="utf8") as f:
+            f.write("\n".join(wat_index_files))
+    else:
+        with fsspec.open(f"{output_path}/wat_index_files.txt", "r", encoding="utf8") as f:
+            wat_index_files = f.read().splitlines()
 
     if multipart is None:
         process_one_part(output_path, wat_index_files, spark, shuffle)
     else:
-        process_multi_part(output_path, wat_index_files, spark, multipart, shuffle)
+        process_multi_part(output_path, wat_index_files, spark, multipart, shuffle, resume)
 
 
 def main():
