@@ -12,6 +12,7 @@ import datetime
 from multiprocessing.pool import ThreadPool
 from pyspark import SparkContext
 from pyspark.sql.functions import rand
+from pyspark.sql import SparkSession
 import random
 import math
 import time
@@ -129,8 +130,9 @@ def deduplicate_repartition_count(df, output_path, wat_count, spark, shuffle=Fal
     logger.info(f"Size: {df.count()}")
 
 
-def process_one_part(output_path, wat_index_files, spark, shuffle=False):
+def process_one_part(output_path, wat_index_files, build_spark, shuffle=False):
     """Process one part"""
+    spark = build_spark()
     sc = SparkContext.getOrCreate()
     wat_count = len(wat_index_files)
     wat_rdd = sc.parallelize(wat_index_files, wat_count)
@@ -154,7 +156,7 @@ def get_last_successful_part(output_path):
     return last_part
 
 
-def process_multi_part(output_path, wat_index_files, spark, multipart, shuffle, resume):
+def process_multi_part(output_path, wat_index_files, build_spark, multipart, shuffle, resume):
     """Process multi part"""
     if resume:
         start_part = get_last_successful_part(output_path) + 1
@@ -170,7 +172,9 @@ def process_multi_part(output_path, wat_index_files, spark, multipart, shuffle, 
         part_path = f"{output_path}/part_{i}"
         part_paths.append(part_path)
         logger.info(f"Processing part {i} from {start} to {end} into {part_path}")
-        process_one_part(part_path, wat_index_files[start:end], spark)
+        process_one_part(part_path, wat_index_files[start:end], build_spark)
+
+    spark = build_spark()
     logger.info("Merging parts")
     df = None
     for part_path in part_paths:
@@ -196,6 +200,7 @@ def cc2imgcap(
     multipart=None,
     shuffle=True,
     resume=None,
+    spark_builder=None,
 ):
     """Convert common crawl to image caption set"""
 
@@ -211,7 +216,14 @@ def cc2imgcap(
 
     logger.info(f"Writing in: {output_path}")
 
-    spark = build_spark_session(master, num_cores, mem_gb)
+    if spark_builder is None:
+        spark_builder = lambda: build_spark_session(master, num_cores, mem_gb)
+
+    def build_spark():
+        spark = SparkSession.getActiveSession()
+        if spark is not None:
+            spark.stop()
+        return spark_builder()
 
     if resume is None:
         wat_index_files = read_wat_index_files(wat_index_count, wat_count)
@@ -223,9 +235,9 @@ def cc2imgcap(
             wat_index_files = f.read().splitlines()
 
     if multipart is None:
-        process_one_part(output_path, wat_index_files, spark, shuffle)
+        process_one_part(output_path, wat_index_files, build_spark, shuffle)
     else:
-        process_multi_part(output_path, wat_index_files, spark, multipart, shuffle, resume)
+        process_multi_part(output_path, wat_index_files, build_spark, multipart, shuffle, resume)
 
 
 def main():

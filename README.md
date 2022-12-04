@@ -40,6 +40,7 @@ This module exposes a single function `cc2imgcap` which takes the same arguments
 * **multipart** runs the processing of the specified number of parts, merge at the end (*default None*)
 * **shuffle** randomly shuffle the output right before saving (*default True*)
 * **resume** the specific path of the output to resume (*default None*)
+* **spark_builder** a function that create a spark session, None will default to the built-in methods (*default None*)
 
 ## For development
 

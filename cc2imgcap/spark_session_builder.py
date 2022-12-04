@@ -7,15 +7,10 @@ import sys
 
 def build_spark_session(master, num_cores, mem_gb):
     """Build a spark session based on the master url and the number of cores and memory to use"""
-    spark = SparkSession.getActiveSession()
-
-    if spark is None:
-        print("No pyspark session found, creating one!")
-
-        if master == "local":
-            spark = local_session(num_cores, mem_gb)
-        else:
-            spark = aws_ec2_s3_spark_session(master, num_cores, mem_gb)
+    if master == "local":
+        spark = local_session(num_cores, mem_gb)
+    else:
+        spark = aws_ec2_s3_spark_session(master, num_cores, mem_gb)
 
     return spark
 
