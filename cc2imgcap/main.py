@@ -2,7 +2,6 @@
 
 
 from fastwarc.warc import ArchiveIterator, WarcRecordType
-from typing import BinaryIO
 import simdjson
 import fsspec
 from timeit import default_timer as timer
@@ -20,10 +19,31 @@ from .spark_session_builder import build_spark_session
 from io import BytesIO
 
 
-def extract_imgs(stream: BinaryIO):
-    """Extract images from a wat file"""
+def valid_image_link(link):
+    valid_path = link.get("path", "") == "IMG@/src"
+    valid_alt = len(link.get("alt", "")) > 0
+    valid_http = link.get("url", "").startswith("http")
+    return valid_path and valid_http and valid_alt
+
+
+def extract_image_from_links(links):
+    """Extract image from links"""
+    filtered_links = [{"url": link["url"], "alt": link["alt"]} for link in links if valid_image_link(link)]
+    return filtered_links
+
+
+def extract_documents_from_links(links, document_type):
+    """Extract documents from links ; this function returns a list of dict {"alt": ..., "url": ...}"""
+
+    if document_type == "image":
+        return extract_image_from_links(links)
+    else:
+        raise ValueError(f"Unknown document type {document_type}")
+
+
+def extract_documents_from_wat(stream, document_type):
+    """Extract document from stream"""
     all_links = []
-    total = 0
     try:
         for record in ArchiveIterator(stream, record_types=WarcRecordType.metadata, parse_http=False):
             try:
@@ -43,9 +63,8 @@ def extract_imgs(stream: BinaryIO):
                 continue
 
             links = metadata["Links"]
-            total += len(links)
 
-            filtered_links = [{"url": link["url"], "alt": link["alt"]} for link in links if valid_link(link)]
+            filtered_links = extract_documents_from_links(links, document_type)
             for link in filtered_links:
                 link["uid"] = str(hashlib.md5((link["alt"] + link["url"]).encode()).hexdigest())
             all_links.extend(filtered_links)
@@ -56,14 +75,7 @@ def extract_imgs(stream: BinaryIO):
     return all_links
 
 
-def valid_link(link):
-    valid_path = link.get("path", "") == "IMG@/src"
-    valid_alt = len(link.get("alt", "")) > 0
-    valid_http = link.get("url", "").startswith("http")
-    return valid_path and valid_http and valid_alt
-
-
-def process_wat(path):
+def process_wat(path, document_type):
     """Process a single wat file"""
     begin_read = timer()
     with fsspec.open(path, "rb") as f:
@@ -79,7 +91,7 @@ def process_wat(path):
                 logger.info(f"retrying reading {i}/10")
                 time.sleep(1)
 
-        for e in extract_imgs(tf):
+        for e in extract_documents_from_wat(tf, document_type):
             yield (e["uid"], e["url"], e["alt"])
     end_read = timer()
     tot_read_time = end_read - begin_read
@@ -118,10 +130,10 @@ def read_wat_index_files(shard_count=None, wat_count=None):
 def deduplicate_repartition_count(df, output_path, wat_count, spark, shuffle=False):
     """Deduplicate and repartition"""
     uniques = df.dropDuplicates(["uid"])
-    repartitioned = uniques.repartition(max(256, wat_count // 100))
     s = time.time()
     if shuffle:
-        repartitioned = repartitioned.sort(rand())
+        uniques = uniques.sort(rand())
+    repartitioned = uniques.repartition(max(256, wat_count // 100))
     repartitioned.write.mode("overwrite").parquet(output_path)
     e = time.time()
     logger.info(f"Took {e - s} seconds")
@@ -130,7 +142,7 @@ def deduplicate_repartition_count(df, output_path, wat_count, spark, shuffle=Fal
     logger.info(f"Size: {df.count()}")
 
 
-def process_one_part(output_path, wat_index_files, build_spark, shuffle=False):
+def process_one_part(output_path, wat_index_files, build_spark, shuffle, document_type):
     """Process one part"""
     spark = build_spark()
     sc = SparkContext.getOrCreate()
@@ -139,7 +151,7 @@ def process_one_part(output_path, wat_index_files, build_spark, shuffle=False):
 
     def extract(x):
         x = list(x)
-        yield from process_wat("s3://commoncrawl/" + x[0])
+        yield from process_wat("s3://commoncrawl/" + x[0], document_type)
 
     output = wat_rdd.mapPartitions(extract)
     df = output.toDF(["uid", "url", "alt"])
@@ -156,7 +168,7 @@ def get_last_successful_part(output_path):
     return last_part
 
 
-def process_multi_part(output_path, wat_index_files, build_spark, multipart, shuffle, resume):
+def process_multi_part(output_path, wat_index_files, build_spark, multipart, shuffle, resume, document_type):
     """Process multi part"""
     if resume:
         start_part = get_last_successful_part(output_path) + 1
@@ -172,7 +184,7 @@ def process_multi_part(output_path, wat_index_files, build_spark, multipart, shu
         part_path = f"{output_path}/part_{i}"
         part_paths.append(part_path)
         logger.info(f"Processing part {i} from {start} to {end} into {part_path}")
-        process_one_part(part_path, wat_index_files[start:end], build_spark)
+        process_one_part(part_path, wat_index_files[start:end], build_spark, False, document_type)
 
     spark = build_spark()
     logger.info("Merging parts")
@@ -201,6 +213,7 @@ def cc2imgcap(
     shuffle=True,
     resume=None,
     spark_builder=None,
+    document_type="image",
 ):
     """Convert common crawl to image caption set"""
 
@@ -235,9 +248,9 @@ def cc2imgcap(
             wat_index_files = f.read().splitlines()
 
     if multipart is None:
-        process_one_part(output_path, wat_index_files, build_spark, shuffle)
+        process_one_part(output_path, wat_index_files, build_spark, shuffle, document_type)
     else:
-        process_multi_part(output_path, wat_index_files, build_spark, multipart, shuffle, resume)
+        process_multi_part(output_path, wat_index_files, build_spark, multipart, shuffle, resume, document_type)
 
 
 def main():
