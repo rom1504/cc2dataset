@@ -16,6 +16,7 @@ def test_main():
             num_cores=1,
             mem_gb=2,
             multipart=None,
+            source_cc_protocol="http",
         )
         files = list(glob(os.path.join(tmpdir, "*/*.parquet")))
         assert len(files) == 256

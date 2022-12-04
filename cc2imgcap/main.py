@@ -98,10 +98,26 @@ def process_wat(path, document_type):
     logger.info(f"Took {tot_read_time} to parse")
 
 
-def get_cc_wat_links():
-    fs, p = fsspec.core.url_to_fs("s3://commoncrawl/crawl-data/")
-    links = ["s3://" + e for e in fs.glob(p + "/*/wat.paths.gz")]
-    return links
+def get_cc_wat_links(source_cc_protocol):
+    """Get cc wat links"""
+    if source_cc_protocol == "s3":
+        fs, p = fsspec.core.url_to_fs("s3://commoncrawl/crawl-data/")
+        links = ["s3://" + e for e in fs.glob(p + "/*/wat.paths.gz")]
+        return links
+    elif source_cc_protocol == "http":
+        fs, p = fsspec.core.url_to_fs("https://commoncrawl.org/the-data/get-started/")
+        a = fs.open(p).read()
+        l = a.splitlines()
+        l = [e.decode("utf8").replace("[WARC] ", "") for e in l]
+        l = [e for e in l if "<li>s3://commoncrawl/crawl-data/" in e]
+        l = [
+            e.split(" ")[0].replace("<li>s3://commoncrawl/", "https://data.commoncrawl.org/").replace("<wbr>", "")
+            for e in l
+        ]
+        l = [(e + "/wat.paths.gz").replace("//wat", "/wat") for e in l]
+        return l
+    else:
+        raise ValueError(f"Unknown protocol {source_cc_protocol}")
 
 
 def read_wat_index_file(wat_index):
@@ -110,9 +126,9 @@ def read_wat_index_file(wat_index):
     return wats
 
 
-def read_wat_index_files(shard_count=None, wat_count=None):
+def read_wat_index_files(shard_count, wat_count, source_cc_protocol):
     """Read all wat index files"""
-    cc_wat_links = get_cc_wat_links()
+    cc_wat_links = get_cc_wat_links(source_cc_protocol)
     if shard_count is not None:
         cc_wat_links = cc_wat_links[-shard_count:]  # pylint: disable=invalid-unary-operand-type
     all_wats = []
@@ -142,16 +158,20 @@ def deduplicate_repartition_count(df, output_path, wat_count, spark, shuffle=Fal
     logger.info(f"Size: {df.count()}")
 
 
-def process_one_part(output_path, wat_index_files, build_spark, shuffle, document_type):
+def process_one_part(output_path, wat_index_files, build_spark, shuffle, document_type, source_cc_protocol):
     """Process one part"""
     spark = build_spark()
     sc = SparkContext.getOrCreate()
     wat_count = len(wat_index_files)
     wat_rdd = sc.parallelize(wat_index_files, wat_count)
+    if source_cc_protocol == "s3":
+        prefix = "s3://commoncrawl/"
+    elif source_cc_protocol == "http":
+        prefix = "https://data.commoncrawl.org/"
 
     def extract(x):
         x = list(x)
-        yield from process_wat("s3://commoncrawl/" + x[0], document_type)
+        yield from process_wat(prefix + x[0], document_type)
 
     output = wat_rdd.mapPartitions(extract)
     df = output.toDF(["uid", "url", "alt"])
@@ -168,7 +188,9 @@ def get_last_successful_part(output_path):
     return last_part
 
 
-def process_multi_part(output_path, wat_index_files, build_spark, multipart, shuffle, resume, document_type):
+def process_multi_part(
+    output_path, wat_index_files, build_spark, multipart, shuffle, resume, document_type, source_cc_protocol
+):
     """Process multi part"""
     if resume:
         start_part = get_last_successful_part(output_path) + 1
@@ -184,7 +206,7 @@ def process_multi_part(output_path, wat_index_files, build_spark, multipart, shu
         part_path = f"{output_path}/part_{i}"
         part_paths.append(part_path)
         logger.info(f"Processing part {i} from {start} to {end} into {part_path}")
-        process_one_part(part_path, wat_index_files[start:end], build_spark, False, document_type)
+        process_one_part(part_path, wat_index_files[start:end], build_spark, False, document_type, source_cc_protocol)
 
     spark = build_spark()
     logger.info("Merging parts")
@@ -214,6 +236,7 @@ def cc2imgcap(
     resume=None,
     spark_builder=None,
     document_type="image",
+    source_cc_protocol="s3",
 ):
     """Convert common crawl to image caption set"""
 
@@ -239,7 +262,7 @@ def cc2imgcap(
         return spark_builder()
 
     if resume is None:
-        wat_index_files = read_wat_index_files(wat_index_count, wat_count)
+        wat_index_files = read_wat_index_files(wat_index_count, wat_count, source_cc_protocol)
         # write wat index files to disk in output_path with fsspec
         with fsspec.open(f"{output_path}/wat_index_files.txt", "w", encoding="utf8") as f:
             f.write("\n".join(wat_index_files))
@@ -248,9 +271,11 @@ def cc2imgcap(
             wat_index_files = f.read().splitlines()
 
     if multipart is None:
-        process_one_part(output_path, wat_index_files, build_spark, shuffle, document_type)
+        process_one_part(output_path, wat_index_files, build_spark, shuffle, document_type, source_cc_protocol)
     else:
-        process_multi_part(output_path, wat_index_files, build_spark, multipart, shuffle, resume, document_type)
+        process_multi_part(
+            output_path, wat_index_files, build_spark, multipart, shuffle, resume, document_type, source_cc_protocol
+        )
 
 
 def main():
