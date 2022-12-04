@@ -10,3 +10,5 @@ wandb
 .pexing
 **/*.parquet
 **/*.tar.gz
+.mypy_cache
+.pytest_cache

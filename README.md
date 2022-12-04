@@ -41,6 +41,7 @@ This module exposes a single function `cc2imgcap` which takes the same arguments
 * **shuffle** randomly shuffle the output right before saving (*default True*)
 * **resume** the specific path of the output to resume (*default None*)
 * **spark_builder** a function that create a spark session, None will default to the built-in methods (*default None*)
+* **document_type** the kind of document to extract (*default image*)
 
 ## For development
 

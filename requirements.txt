@@ -7,3 +7,4 @@ pyarrow
 fastwarc
 s3fs
 fire
+requests
