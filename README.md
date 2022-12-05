@@ -12,6 +12,13 @@ It also runs deduplication against url+text in order to save on output space and
 This makes it possible to do the first step of building a dataset like [laion5B](https://laion.ai/blog/laion-5b/) in 70k cpu core hours. (`5*10^6*50/(3600)`)
 That's `$2.8k` using aws EC2 (0.04$/core hour)
 
+## Intended usage
+
+This tool produces a collection of link + caption. It is meant as the stage 1 of creating a dataset. It does deduplication and as minimal as possible filtering (does it look like an url / is the caption non empty).
+
+This produces a large quantity of raw data that can then be further filtered by appropriate techniques.
+An example of stage 2 can be to estimate the similarity between (link, text) with a model such as CLIP. This may reduce the quantity of data by a factor of up to 100x depending on the chosen threshold.
+
 ## What hardware to pick ?
 
 `cpu128-dy-c6i-32xlarge` instances are advised. Spark stores the non duplicated first stage in local disk. They should be nvme drive for speed during deduplication. At this first stage, one wat takes about 20MB, so the total (over all workers) space must be more than 20MB times wat count. So for example for the whole CC, that means 100TB. So for example that can fit in 150 instances with 1TB nvme drive each. 150 instances of 128 cores is 19200 cores so the whole processing takes 2h. Less instances with bigger hard drives can work too. It's also a possibility to do the processing in multiple pieces if temporary disk space is an issue by specifying `--multipart`.
