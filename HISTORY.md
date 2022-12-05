@@ -1,3 +1,7 @@
+## 1.3.1
+
+* Rename to cc2dataset
+
 ## 1.3.0
 
 * Support audio document type

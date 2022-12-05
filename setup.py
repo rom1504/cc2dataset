@@ -17,7 +17,7 @@ if __name__ == "__main__":
         name="cc2dataset",
         packages=find_packages(),
         include_package_data=True,
-        version="1.3.0",
+        version="1.3.1",
         license="MIT",
         description="Easily convert common crawl to image caption set using pyspark",
         long_description=long_description,
