@@ -6,9 +6,9 @@ install-dev: ## [Local development] Install test requirements
 	python -m pip install -r requirements-test.txt
 
 lint: ## [Local development] Run mypy, pylint and black
-	python -m mypy cc2imgcap
-	python -m pylint cc2imgcap
-	python -m black --check -l 120 cc2imgcap
+	python -m mypy cc2dataset
+	python -m pylint cc2dataset
+	python -m black --check -l 120 cc2dataset
 
 black: ## [Local development] Auto-format python code using black
 	python -m black -l 120 .
@@ -16,7 +16,7 @@ black: ## [Local development] Auto-format python code using black
 build-pex:
 	python3 -m venv .pexing
 	. .pexing/bin/activate && python -m pip install -U pip && python -m pip install pex
-	. .pexing/bin/activate && python -m pex setuptools . -o cc2imgcap.pex -v
+	. .pexing/bin/activate && python -m pex setuptools . -o cc2dataset.pex -v
 	rm -rf .pexing
 
 test: ## [Local development] Run unit tests

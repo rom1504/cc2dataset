@@ -1,4 +1,4 @@
-from cc2imgcap import process_wat
+from cc2dataset import process_wat
 import os
 import pandas as pd
 

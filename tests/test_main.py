@@ -1,5 +1,5 @@
 import pytest
-from cc2imgcap import cc2imgcap
+from cc2dataset import cc2dataset
 import os
 import pandas as pd
 import tempfile
@@ -8,7 +8,7 @@ from glob import glob
 
 def test_main():
     with tempfile.TemporaryDirectory() as tmpdir:
-        cc2imgcap(
+        cc2dataset(
             tmpdir,
             wat_index_count=None,
             wat_count=1,

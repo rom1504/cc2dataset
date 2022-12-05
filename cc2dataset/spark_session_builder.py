@@ -20,7 +20,7 @@ def local_session(num_cores=4, mem_gb=16):
     spark = (
         SparkSession.builder.config("spark.driver.memory", str(mem_gb) + "G")
         .master("local[" + str(num_cores) + "]")
-        .appName("cc2imgcap")
+        .appName("cc2dataset")
         .getOrCreate()
     )
     return spark
@@ -67,7 +67,7 @@ def aws_ec2_s3_spark_session(master, num_cores=128, mem_gb=256):
         .config("spark.hadoop.fs.s3a.fast.upload.buffer", "array")
         .config("spark.hadoop.fs.s3a.bucket.all.committer.magic.enabled", "true")
         .master(master)  # this should be set to the spark master url
-        .appName("cc2imgcap")
+        .appName("cc2dataset")
         .getOrCreate()
     )
     return spark

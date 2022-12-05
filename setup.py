@@ -14,7 +14,7 @@ if __name__ == "__main__":
     REQUIREMENTS = _read_reqs("requirements.txt")
 
     setup(
-        name="cc2imgcap",
+        name="cc2dataset",
         packages=find_packages(),
         include_package_data=True,
         version="1.3.0",
@@ -24,7 +24,7 @@ if __name__ == "__main__":
         long_description_content_type="text/markdown",
         author="Romain Beaumont",
         author_email="romain.rom1@gmail.com",
-        url="https://github.com/rom1504/cc2imgcap",
+        url="https://github.com/rom1504/cc2dataset",
         data_files=[(".", ["README.md"])],
         keywords=["machine learning"],
         install_requires=REQUIREMENTS,

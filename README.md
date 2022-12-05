@@ -1,6 +1,6 @@
-# cc2imgcap
-[![pypi](https://img.shields.io/pypi/v/cc2imgcap.svg)](https://pypi.python.org/pypi/cc2imgcap)
-[![Try it on gitpod](https://img.shields.io/badge/try-on%20gitpod-brightgreen.svg)](https://gitpod.io/#https://github.com/rom1504/cc2imgcap)
+# cc2dataset
+[![pypi](https://img.shields.io/pypi/v/cc2dataset.svg)](https://pypi.python.org/pypi/cc2dataset)
+[![Try it on gitpod](https://img.shields.io/badge/try-on%20gitpod-brightgreen.svg)](https://gitpod.io/#https://github.com/rom1504/cc2dataset)
 
 Easily convert common crawl to image caption set using pyspark.
 
@@ -27,7 +27,7 @@ You may experiment with more document kinds by running `python example single_wa
 
 ## Install
 
-pip install cc2imgcap
+pip install cc2dataset
 
 ## Python examples
 
@@ -38,7 +38,7 @@ If you have a slurm cluster, refer to https://gist.github.com/rom1504/67ada3dedb
 
 ## API
 
-This module exposes a single function `cc2imgcap` which takes the same arguments as the command line tool:
+This module exposes a single function `cc2dataset` which takes the same arguments as the command line tool:
 * **output_path** the output path, should probably start with s3://. The output will be written to this path sufixed by the date (*required*)
 * **wat_index_count** the number of wat index files to read, can be None for all. (*default 1*)
 * **wat_count** the number of wat files to read, can be None for all, will randomly subsample if present. (*default 100*)
@@ -54,7 +54,7 @@ This module exposes a single function `cc2imgcap` which takes the same arguments
 
 ## For development
 
-Either locally, or in [gitpod](https://gitpod.io/#https://github.com/rom1504/cc2imgcap) (do `export PIP_USER=false` there)
+Either locally, or in [gitpod](https://gitpod.io/#https://github.com/rom1504/cc2dataset) (do `export PIP_USER=false` there)
 
 Setup a virtualenv:
 

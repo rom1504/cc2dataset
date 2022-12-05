@@ -239,7 +239,7 @@ def get_date_str():
     return datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
 
 
-def cc2imgcap(
+def cc2dataset(
     output_path,
     wat_index_count=1,
     wat_count=100,
@@ -294,7 +294,7 @@ def cc2imgcap(
 
 
 def main():
-    fire.Fire(cc2imgcap)
+    fire.Fire(cc2dataset)
 
 
 if __name__ == "__main__":

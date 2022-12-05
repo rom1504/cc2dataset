@@ -1,5 +1,5 @@
 import pytest
-from cc2imgcap import process_wat
+from cc2dataset import process_wat
 import pandas as pd
 
 test_url = "https://data.commoncrawl.org/crawl-data/CC-MAIN-2022-40/segments/1664030331677.90/wat/CC-MAIN-20220924151538-20220924181538-00000.warc.wat.gz"
