@@ -19,6 +19,28 @@ from .spark_session_builder import build_spark_session
 from io import BytesIO
 
 
+def valid_video_link(link):
+    valid_http = link.get("url", "").startswith("http")
+    valid_video = any(link.get("url", "").endswith(ext) for ext in [".avi", ".mp4", ".mkv", ".webm", ".mov"])
+    return valid_http and valid_video
+
+
+def extract_video_from_links(links):
+    filtered_links = [{"url": link["url"], "alt": link.get("text", "")} for link in links if valid_video_link(link)]
+    return filtered_links
+
+
+def valid_text_link(link):
+    valid_http = link.get("url", "").startswith("http")
+    valid_text = any(link.get("url", "").endswith(ext) for ext in [".pdf", ".epub", ".djvu"])
+    return valid_http and valid_text
+
+
+def extract_text_from_links(links):
+    filtered_links = [{"url": link["url"], "alt": link.get("text", "")} for link in links if valid_text_link(link)]
+    return filtered_links
+
+
 def valid_audio_link(link):
     valid_http = link.get("url", "").startswith("http")
     valid_audio = any(link.get("url", "").endswith(ext) for ext in [".ogg", ".wav", ".mp3", ".flac", ".m4a"])
@@ -51,6 +73,10 @@ def extract_documents_from_links(links, document_type):
         return extract_image_from_links(links)
     elif document_type == "audio":
         return extract_audio_from_links(links)
+    elif document_type == "text":
+        return extract_text_from_links(links)
+    elif document_type == "video":
+        return extract_video_from_links(links)
     else:
         raise ValueError(f"Unknown document type {document_type}")
 

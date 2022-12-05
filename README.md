@@ -20,7 +20,9 @@ That's `$2.8k` using aws EC2 (0.04$/core hour)
 
 This tool support extracting several documents from CC:
 * image/text: about 300B after dedup
-* audio/text: about 3B after dedup
+* audio/text: about 300M after dedup
+* text doc : about 3B after dedup
+* video/text: about 250M after dedup
 
 They can be selected with eg `--document_type audio`.
 You may experiment with more document kinds by running `python example single_warc_example.py` and exploring the resulting output.parquet.
