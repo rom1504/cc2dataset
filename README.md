@@ -2,10 +2,10 @@
 [![pypi](https://img.shields.io/pypi/v/cc2dataset.svg)](https://pypi.python.org/pypi/cc2dataset)
 [![Try it on gitpod](https://img.shields.io/badge/try-on%20gitpod-brightgreen.svg)](https://gitpod.io/#https://github.com/rom1504/cc2dataset)
 
-Easily convert common crawl to image caption set using pyspark.
+Easily convert common crawl to a dataset of caption and document. Image/text Audio/text Video/text, ...
 
 Common crawl has [5M wat files](https://commoncrawl.org/the-data/get-started/). They provide links of the web.
-This simple tool allows you to process one warc in about 50s and get image link along with the alt text.
+This simple tool allows you to process one warc in about 50s and get documents link along with the alt text.
 
 It also runs deduplication against url+text in order to save on output space and speed up the process.
 
