@@ -19,6 +19,18 @@ from .spark_session_builder import build_spark_session
 from io import BytesIO
 
 
+def valid_audio_link(link):
+    valid_http = link.get("url", "").startswith("http")
+    valid_audio = any(link.get("url", "").endswith(ext) for ext in [".ogg", ".wav", ".mp3", ".flac", ".m4a"])
+    return valid_http and valid_audio
+
+
+def extract_audio_from_links(links):
+    """Extract image from links"""
+    filtered_links = [{"url": link["url"], "alt": link.get("text", "")} for link in links if valid_audio_link(link)]
+    return filtered_links
+
+
 def valid_image_link(link):
     valid_path = link.get("path", "") == "IMG@/src"
     valid_alt = len(link.get("alt", "")) > 0
@@ -37,6 +49,8 @@ def extract_documents_from_links(links, document_type):
 
     if document_type == "image":
         return extract_image_from_links(links)
+    elif document_type == "audio":
+        return extract_audio_from_links(links)
     else:
         raise ValueError(f"Unknown document type {document_type}")
 
@@ -68,7 +82,8 @@ def extract_documents_from_wat(stream, document_type):
             for link in filtered_links:
                 link["uid"] = str(hashlib.md5((link["alt"] + link["url"]).encode()).hexdigest())
             all_links.extend(filtered_links)
-    except:  # pylint: disable=bare-except
+    except Exception as e:  # pylint: disable=broad-except
+        logger.info(e)
         logger.info("A shard failed to parse")
         return []
 

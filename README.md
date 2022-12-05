@@ -16,6 +16,15 @@ That's `$2.8k` using aws EC2 (0.04$/core hour)
 
 `cpu128-dy-c6i-32xlarge` instances are advised. Spark stores the non duplicated first stage in local disk. They should be nvme drive for speed during deduplication. At this first stage, one wat takes about 20MB, so the total (over all workers) space must be more than 20MB times wat count. So for example for the whole CC, that means 100TB. So for example that can fit in 150 instances with 1TB nvme drive each. 150 instances of 128 cores is 19200 cores so the whole processing takes 2h. Less instances with bigger hard drives can work too. It's also a possibility to do the processing in multiple pieces if temporary disk space is an issue by specifying `--multipart`.
 
+## Document type
+
+This tool support extracting several documents from CC:
+* image/text: about 300B after dedup
+* audio/text: about 3B after dedup
+
+They can be selected with eg `--document_type audio`.
+You may experiment with more document kinds by running `python example single_warc_example.py` and exploring the resulting output.parquet.
+
 ## Install
 
 pip install cc2imgcap
