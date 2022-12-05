@@ -27,9 +27,9 @@ An example of stage 2 can be to estimate the similarity between (link, text) wit
 
 This tool support extracting several documents from CC:
 * image/text: about 300B after dedup
-* audio/text: about 300M after dedup
-* text doc : about 3B after dedup
-* video/text: about 250M after dedup
+* audio/text: about 2B after dedup
+* text doc : about 10B after dedup
+* video/text: about 2B after dedup
 
 They can be selected with eg `--document_type audio`.
 You may experiment with more document kinds by running `python example single_warc_example.py` and exploring the resulting output.parquet.
