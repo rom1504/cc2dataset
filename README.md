@@ -21,6 +21,8 @@ An example of stage 2 can be to estimate the similarity between (link, text) wit
 
 ## What hardware to pick ?
 
+CC is big and located at s3 us east 1, so it makes a lot of sense in term of network to use machines located in the same place.
+
 `cpu128-dy-c6i-32xlarge` instances are advised. Spark stores the non duplicated first stage in local disk. They should be nvme drive for speed during deduplication. At this first stage, one wat takes about 20MB, so the total (over all workers) space must be more than 20MB times wat count. So for example for the whole CC, that means 100TB. So for example that can fit in 150 instances with 1TB nvme drive each. 150 instances of 128 cores is 19200 cores so the whole processing takes 2h. Less instances with bigger hard drives can work too. It's also a possibility to do the processing in multiple pieces if temporary disk space is an issue by specifying `--multipart`.
 
 ## Document type
