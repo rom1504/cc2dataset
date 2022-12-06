@@ -86,3 +86,9 @@ make test
 You can use `make black` to reformat the code
 
 `python -m pytest -x -s -v tests -k "dummy"` to run a specific test
+
+
+## Thanks
+
+* [Vaishaal](https://github.com/Vaishaal) for providing the initial CC parsing code with efficient libraries
+* [rvencu](https://github.com/rvencu) for optimizing the cc [parsing code](https://github.com/rvencu/crawlingathome-gpu-hcloud) for laion5B on which the idea of this package is based on
