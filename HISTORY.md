@@ -1,3 +1,7 @@
+## 1.4.0
+
+* Add text and video document types
+
 ## 1.3.1
 
 * Rename to cc2dataset
