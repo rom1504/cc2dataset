@@ -34,11 +34,14 @@ def aws_ec2_s3_spark_session(master, num_cores=128, mem_gb=256):
     memory_overhead = str(mem_gb - int(mem_gb * 0.9)) + "g"
     spark = (
         SparkSession.builder.config("spark.submit.deployMode", "client")
+        .config("spark.driver.cores", "20")
+        .config("spark.driver.memory", "50g")
+        .config("spark.driver.maxResultSize", "10g")
         .config("spark.executor.memory", main_memory)
         .config("spark.executor.cores", str(num_cores))  # this can be set to the number of cores of the machine
         .config("spark.task.cpus", "1")
         .config("spark.executor.memoryOverhead", memory_overhead)
-        .config("spark.task.maxFailures", "2")
+        .config("spark.task.maxFailures", "10")
         .config(
             "spark.jars.packages", "org.apache.hadoop:hadoop-aws:3.3.1,org.apache.spark:spark-hadoop-cloud_2.13:3.3.1"
         )
