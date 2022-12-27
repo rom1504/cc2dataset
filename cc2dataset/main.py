@@ -30,10 +30,36 @@ def extract_video_from_links(links):
     return filtered_links
 
 
+text_extensions = set(
+    [
+        "pdf",
+        "epub",
+        "djvu",
+        "mobi",
+        "doc",
+        "docx",
+        "rtf",
+        "txt",
+        "odt",
+        "ppt",
+        "pptx",
+        "pages",
+        "keynote",
+        "wps",
+        "md",
+    ]
+)
+
+
 def valid_text_link(link):
-    valid_http = link.get("url", "").startswith("http")
-    valid_text = any(link.get("url", "").endswith(ext) for ext in [".pdf", ".epub", ".djvu"])
-    return valid_http and valid_text
+    if not link.get("url", "").startswith("http"):
+        return False
+    splits = link.get("url", "").split(".")
+    if len(splits) < 2:
+        return False
+    if splits[-1] not in text_extensions:
+        return False
+    return True
 
 
 def extract_text_from_links(links):
