@@ -22,7 +22,7 @@ def test_single_warc_audio():
 def test_single_warc_text():
     results = process_wat(test_url, "text")
     df = pd.DataFrame(results, columns=["uid", "url", "alt"])
-    assert len(df) == 5920
+    assert len(df) == 6375
     assert df["uid"][3] == "93bae45778122b4ae8f79d420eaed667"
 
 
