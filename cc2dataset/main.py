@@ -216,7 +216,7 @@ def deduplicate_repartition_count(df, output_path, wat_count, spark, shuffle=Fal
     s = time.time()
     if shuffle:
         uniques = uniques.sort(rand())
-    repartitioned = uniques.repartition(max(256, wat_count // 100))
+    repartitioned = uniques.repartition(max(256, wat_count // 500))
     repartitioned.write.mode("overwrite").parquet(output_path)
     e = time.time()
     logger.info(f"Took {e - s} seconds")
@@ -251,7 +251,7 @@ def get_last_successful_part(output_path):
     output_path = output_path.replace("s3a", "s3")
     fs, _ = fsspec.core.url_to_fs(output_path)
     successful_parts = fs.glob(output_path + "/*/_SUCCESS")
-    last_part = sorted([int(e.split("/")[-2].split("_")[-1]) for e in successful_parts])[-1]
+    last_part = sorted([int(e.split("/")[-2].split("_")[-1]) for e in successful_parts if "merged" not in e])[-1]
     return last_part
 
 
@@ -278,6 +278,7 @@ def process_multi_part(
     spark = build_spark()
     logger.info("Merging parts")
     df = None
+    part_paths = [f"{output_path}/part_{i}" for i in range(0, multipart)]
     for part_path in part_paths:
         if df is None:
             df = spark.read.parquet(part_path)
