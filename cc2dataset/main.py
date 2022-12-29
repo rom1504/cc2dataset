@@ -21,7 +21,9 @@ from io import BytesIO
 
 def valid_video_link(link):
     valid_http = link.get("url", "").startswith("http")
-    valid_video = any(link.get("url", "").endswith(ext) for ext in [".avi", ".mp4", ".mkv", ".webm", ".mov"])
+    valid_video = any(
+        link.get("url", "").endswith(ext) for ext in [".avi", ".mp4", ".mkv", ".webm", ".mov", ".mpg", ".mpeg", ".m4v"]
+    )
     return valid_http and valid_video
 
 
