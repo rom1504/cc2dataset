@@ -17,7 +17,21 @@ import math
 import time
 from .spark_session_builder import build_spark_session
 from io import BytesIO
+from yt_dlp.extractor import gen_extractor_classes, GenericIE
+    
 
+def valid_video_platform_link(link):
+    if "amazon" in link.get("url", "") or "drive" in link.get("url", "") or "twitter" in link.get("url", "") or "pinterest" in link.get("url", "") or "youtube" in link.get("url", "") or "instagram" in link.get("url", ""):
+        return False
+    for ie in gen_extractor_classes():
+        if ie != GenericIE and ie.suitable(link.get("url", "")):
+            return True
+    return False
+
+def extract_video_platform_from_links(links):
+    #links = links[:100]
+    filtered_links = [{"url": link["url"], "alt": link.get("text", "")} for link in links if valid_video_platform_link(link)]
+    return filtered_links
 
 def valid_video_link(link):
     valid_http = link.get("url", "").startswith("http")
@@ -105,6 +119,8 @@ def extract_documents_from_links(links, document_type):
         return extract_text_from_links(links)
     elif document_type == "video":
         return extract_video_from_links(links)
+    elif document_type == "video_platform":
+        return extract_video_platform_from_links(links)
     else:
         raise ValueError(f"Unknown document type {document_type}")
 
@@ -136,6 +152,8 @@ def extract_documents_from_wat(stream, document_type):
             for link in filtered_links:
                 link["uid"] = str(hashlib.md5((link["alt"] + link["url"]).encode()).hexdigest())
             all_links.extend(filtered_links)
+            if len(all_links) > 100:
+                return all_links
     except Exception as e:  # pylint: disable=broad-except
         logger.info(e)
         logger.info("A shard failed to parse")
