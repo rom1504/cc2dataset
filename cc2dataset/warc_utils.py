@@ -1,3 +1,10 @@
+from fastwarc import ArchiveIterator
+import hashlib
+import fsspec
+from resiliparse.parse import detect_encoding
+from resiliparse.parse.html import HTMLTree
+from resiliparse.extract.html2text import extract_plain_text
+
 def extract_documents_from_warc(stream):
     """Extract document from stream"""
     all_extend = []
