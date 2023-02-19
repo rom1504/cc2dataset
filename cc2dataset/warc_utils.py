@@ -4,6 +4,7 @@ import fsspec
 from resiliparse.parse import detect_encoding
 from resiliparse.parse.html import HTMLTree
 from resiliparse.extract.html2text import extract_plain_text
+from io import BytesIO
 
 def extract_documents_from_warc(stream):
     """Extract document from stream"""

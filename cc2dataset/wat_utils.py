@@ -4,7 +4,7 @@ import simdjson
 import fsspec
 from timeit import default_timer as timer
 from loguru import logger
-
+from io import BytesIO
 
 def valid_video_link(link):
     valid_http = link.get("url", "").startswith("http")

@@ -1,3 +1,6 @@
+import fsspec
+from multiprocessing.pool import ThreadPool
+
 def get_cc_links(source_cc_protocol,ccfile):
     """Get cc wat links"""
     if source_cc_protocol == "s3":

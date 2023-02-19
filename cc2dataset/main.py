@@ -8,7 +8,7 @@ from timeit import default_timer as timer
 from loguru import logger
 import hashlib
 import datetime
-from multiprocessing.pool import ThreadPool
+
 from pyspark import SparkContext
 from pyspark.sql.functions import rand
 from pyspark.sql import SparkSession
@@ -16,7 +16,6 @@ import random
 import math
 import time
 from .spark_session_builder import build_spark_session
-from io import BytesIO
 from .wat_utils import process_wat
 from .warc_utils import process_warc
 from .index_utils import read_index_files
@@ -60,7 +59,7 @@ def process_one_part(output_path, cc_index_files, build_spark, shuffle, document
         def extract(x):
             x = list(x)
             yield from process_wat(prefix + x[0], document_type)
-            
+
     elif ccfile == "wet":
         def extract(x):
             x = list(x)
