@@ -5,6 +5,7 @@ from resiliparse.parse import detect_encoding
 from resiliparse.parse.html import HTMLTree
 from resiliparse.extract.html2text import extract_plain_text
 from io import BytesIO
+from lang_utils import LangDetection
 
 def extract_documents_from_warc(stream):
     """Extract document from stream"""
@@ -35,7 +36,16 @@ def extract_documents_from_warc(stream):
                                                 alt_texts=True, links=False,
                                                 form_fields=False, noscript=False)
                     text = text.replace("\n", " ").replace("\t", " ").replace("\r", " ")
-                    all_extend.append({"text":text,"url":url,"uid":str(hashlib.md5((text+url).encode()).hexdigest())})
+                    detector = LangDetection()
+                    permodel = PerplexityModel() 
+                    cre=dict()
+                    cre["text"] = text
+                    cre["url"] = url
+                    cre["uid"] = str(hashlib.md5((text+url).encode()).hexdigest())
+                    cre["lang"] = detector.detect(text)
+                    cre["perplexity"] = permodel(text)
+                    all_extend.append(cre)
+                    
     except Exception as e:  # pylint: disable=broad-except
         logger.info(e)
         logger.info("A shard failed to parse")
