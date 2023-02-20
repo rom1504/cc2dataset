@@ -8,3 +8,7 @@ fastwarc
 s3fs
 fire
 requests
+squeakily
+spacy
+spacy_fastlang
+resiliparse
