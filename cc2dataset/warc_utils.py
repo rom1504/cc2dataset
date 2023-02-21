@@ -36,7 +36,10 @@ def extract_documents_from_warc(stream):
                                                 alt_texts=True, links=False,
                                                 form_fields=False, noscript=False)
                     text = text.replace("\n", " ").replace("\t", " ").replace("\r", " ")
-                    detector = LangDetection()
+                    # donwload https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin and store to a path
+                    
+                    lang_model_path = "lid_model_dump/lid.176.bin"
+                    detector = LangDetection(lang_model_path)
                     permodel = PerplexityModel() 
                     cre=dict()
                     cre["text"] = text
