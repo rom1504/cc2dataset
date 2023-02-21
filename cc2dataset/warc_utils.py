@@ -6,7 +6,7 @@ from resiliparse.parse.html import HTMLTree
 from resiliparse.extract.html2text import extract_plain_text
 from io import BytesIO
 
-from .lang_utils import LangDetection
+from .lang_utils import LangDetection,detect_licence
 from .perplexity_utils import load_perplexity_model
 
 
@@ -14,6 +14,9 @@ def extract_documents_from_warc(stream, kenlm_model_dir):
     """Extract document from stream"""
     all_extend = []
     permodel = load_perplexity_model(kenlm_model_dir)
+    # download https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin and store to a path
+    lang_model_path = "lid_model_dump/lid.176.bin"
+    detector = LangDetection(lang_model_path)
     try:
         for idx, record in enumerate(ArchiveIterator(f, max_content_length=4 * 1024**2)):
             if record.headers is None:
@@ -29,6 +32,7 @@ def extract_documents_from_warc(stream, kenlm_model_dir):
                     url = str(record.headers["WARC-Target-URI"])
                     html_bytes = record.reader.read()
                     encoding = detect_encoding(html_bytes)
+                    licence = detect_licence(html_bytes.decode(encoding))
                     tree = HTMLTree.parse_from_bytes(html_bytes, encoding)
 
                     for ele in tree.body.get_elements_by_tag_name("nav"):
@@ -40,17 +44,14 @@ def extract_documents_from_warc(stream, kenlm_model_dir):
                                               alt_texts=True, links=False,
                                               form_fields=False, noscript=False)
                     text = text.replace("\n", " ").replace("\t", " ").replace("\r", " ")
-                    # donwload https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin and store to a path
-                    
-                    lang_model_path = "lid_model_dump/lid.176.bin"
-                    detector = LangDetection(lang_model_path)
-                    permodel = PerplexityModel() 
+
                     cre=dict()
                     cre["text"] = text
                     cre["url"] = url
                     cre["uid"] = str(hashlib.md5((text+url).encode()).hexdigest())
-                    cre["lang"] = detector.detect(text)
+                    cre["lang"],_ = detector.detect(text)
                     cre["perplexity"] = permodel(text)
+                    cre['license'] = licence
                     all_extend.append(cre)
 
     except Exception as e:  # pylint: disable=broad-except
@@ -77,7 +78,7 @@ def process_warc(path):
                 time.sleep(1)
 
         for e in extract_documents_from_warc(tf):
-            yield (e["uid"], e["url"], e["text"])
+            yield (e["uid"], e["url"], e["text"],e['lang'], e['perplexity'],e['license'])
     end_read = timer()
     tot_read_time = end_read - begin_read
     logger.info(f"Took {tot_read_time} to parse")
