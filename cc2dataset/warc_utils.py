@@ -40,17 +40,12 @@ def extract_documents_from_warc(stream, kenlm_model_dir):
                                               alt_texts=True, links=False,
                                               form_fields=False, noscript=False)
                     text = text.replace("\n", " ").replace("\t", " ").replace("\r", " ")
-<<<<<<< HEAD
                     # donwload https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin and store to a path
                     
                     lang_model_path = "lid_model_dump/lid.176.bin"
                     detector = LangDetection(lang_model_path)
                     permodel = PerplexityModel() 
                     cre=dict()
-=======
-                    detector = LangDetection()
-                    cre = dict()
->>>>>>> 335481b65712237fe3e4c85c206c95d08d88455d
                     cre["text"] = text
                     cre["url"] = url
                     cre["uid"] = str(hashlib.md5((text+url).encode()).hexdigest())
