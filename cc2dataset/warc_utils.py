@@ -5,13 +5,17 @@ from resiliparse.parse import detect_encoding
 from resiliparse.parse.html import HTMLTree
 from resiliparse.extract.html2text import extract_plain_text
 from io import BytesIO
-from lang_utils import LangDetection
 
-def extract_documents_from_warc(stream):
+from .lang_utils import LangDetection
+from .perplexity_utils import load_perplexity_model
+
+
+def extract_documents_from_warc(stream, kenlm_model_dir):
     """Extract document from stream"""
     all_extend = []
+    permodel = load_perplexity_model(kenlm_model_dir)
     try:
-        for idx,record in enumerate(ArchiveIterator(f, max_content_length=4 * 1024**2)):
+        for idx, record in enumerate(ArchiveIterator(f, max_content_length=4 * 1024**2)):
             if record.headers is None:
                 continue
             if record.http_headers is None:
@@ -32,23 +36,28 @@ def extract_documents_from_warc(stream):
 
 
                     text = extract_plain_text(tree, preserve_formatting=False,
-                                                main_content=False, list_bullets=False,
-                                                alt_texts=True, links=False,
-                                                form_fields=False, noscript=False)
+                                              main_content=False, list_bullets=False,
+                                              alt_texts=True, links=False,
+                                              form_fields=False, noscript=False)
                     text = text.replace("\n", " ").replace("\t", " ").replace("\r", " ")
+<<<<<<< HEAD
                     # donwload https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin and store to a path
                     
                     lang_model_path = "lid_model_dump/lid.176.bin"
                     detector = LangDetection(lang_model_path)
                     permodel = PerplexityModel() 
                     cre=dict()
+=======
+                    detector = LangDetection()
+                    cre = dict()
+>>>>>>> 335481b65712237fe3e4c85c206c95d08d88455d
                     cre["text"] = text
                     cre["url"] = url
                     cre["uid"] = str(hashlib.md5((text+url).encode()).hexdigest())
                     cre["lang"] = detector.detect(text)
                     cre["perplexity"] = permodel(text)
                     all_extend.append(cre)
-                    
+
     except Exception as e:  # pylint: disable=broad-except
         logger.info(e)
         logger.info("A shard failed to parse")
