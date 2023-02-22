@@ -50,7 +50,7 @@ def read_index_files(crawl_count, file_count, source_cc_protocol,ccfile,crawl_in
         cc_links = cc_links[-crawl_count:]  # pylint: disable=invalid-unary-operand-type
     all_files = []
     with ThreadPool(16) as pool:
-        for wats in pool.imap_unordered(read_index_file, cc_wat_links):
+        for wats in pool.imap_unordered(read_index_file, cc_links):
             all_files.extend(wats)
     if file_count is not None:
         all_files = random.choices(all_files, k=file_count)
