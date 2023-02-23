@@ -10,7 +10,6 @@ if __name__ == "__main__":
     else:
         url = "https://data.commoncrawl.org/" + wurl
 
-    #results = process_wat(url, "image")
     results = process_warc(url)
     df = pd.DataFrame(results, columns=["uid", "url", "text",'lang','license'])
     df.to_parquet(os.getcwd() + "/output.parquet")

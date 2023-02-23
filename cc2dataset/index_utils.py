@@ -1,5 +1,6 @@
 import fsspec
 from multiprocessing.pool import ThreadPool
+import random
 
 def get_cc_links(source_cc_protocol,ccfile):
     """Get cc wat links"""
@@ -45,7 +46,7 @@ def read_index_files(crawl_count, file_count, source_cc_protocol, ccfile, crawl_
     """Read all wat index files"""
     cc_links = get_cc_links(source_cc_protocol,ccfile)
     if crawl_index_list is not None:
-        cc_links = [cc_wat_links[i] for i in crawl_index_list]
+        cc_links = [cc_links[i] for i in crawl_index_list]
     if crawl_count is not None:
         cc_links = cc_links[-crawl_count:]  # pylint: disable=invalid-unary-operand-type
     all_files = []

@@ -8,16 +8,16 @@ from io import BytesIO
 from timeit import default_timer as timer
 from .lang_utils import LangDetection,detect_licence
 from loguru import logger
-from .kenlm import PerplexityScorer
-
+constants_path = pathlib.Path(__file__)
+M_PATH = constants_path.parent
 
 
 def extract_documents_from_warc(stream):
     """Extract document from stream"""
     all_extend = []
-    permodel = PerplexityScorer()
+    #permodel = PerplexityScorer()
     # download https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin and store to a path
-    lang_model_path = "../assets/lid.176.bin"
+    #lang_model_path = "/fsx/home-harrysaini/ccspark/cc2dataset/assets/lid.176.bin"
     detector = LangDetection(lang_model_path)
     try:
         for idx, record in enumerate(ArchiveIterator(stream, max_content_length=4 * 1024**2)):
@@ -54,7 +54,7 @@ def extract_documents_from_warc(stream):
                         cre["uid"] = str(hashlib.md5((text+url).encode()).hexdigest())
                         cre["lang"],_ = detector.detect(text)
                         cre['license'] = licence
-                        cre.update(permodel(text, prefix="perplexity/"))
+                        #cre.update(permodel(text, prefix="perplexity/"))
                         all_extend.append(cre)
             except:
                 continue
@@ -83,7 +83,7 @@ def process_warc(path):
                 time.sleep(1)
 
         for e in extract_documents_from_warc(tf):
-            yield (e["uid"], e["url"], e["text"], e["lang"], e["license"],e['perplexity/ccnet/wikipedia'],e['perplexity/ontocord/riverbed_kenlm'])
+            yield (e["uid"], e["url"], e["text"], e["lang"], e["license"])
     end_read = timer()
     tot_read_time = end_read - begin_read
     logger.info(f"Took {tot_read_time} to parse")
