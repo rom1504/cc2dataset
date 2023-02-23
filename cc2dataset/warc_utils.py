@@ -5,9 +5,9 @@ from resiliparse.parse import detect_encoding
 from resiliparse.parse.html import HTMLTree
 from resiliparse.extract.html2text import extract_plain_text
 from io import BytesIO
-
+from timeit import default_timer as timer
 from .lang_utils import LangDetection,detect_licence
-from .perplexity_utils import load_perplexity_model
+#from .perplexity_utils import load_perplexity_model
 
 
 def extract_documents_from_warc(stream, kenlm_model_dir):
