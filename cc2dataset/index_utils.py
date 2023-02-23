@@ -41,7 +41,7 @@ def read_index_file(file_index):
     return crawlfiles
 
 
-def read_index_files(crawl_count, file_count, source_cc_protocol,ccfile,crawl_index_list):
+def read_index_files(crawl_count, file_count, source_cc_protocol, ccfile, crawl_index_list, shuffle):
     """Read all wat index files"""
     cc_links = get_cc_links(source_cc_protocol,ccfile)
     if crawl_index_list is not None:
@@ -54,7 +54,7 @@ def read_index_files(crawl_count, file_count, source_cc_protocol,ccfile,crawl_in
             all_files.extend(wats)
     if file_count is not None:
         all_files = random.choices(all_files, k=file_count)
-    else:
+    if shuffle:
         # shuffle to increase duplication over each part hence reduce size of each part after duplication
         random.shuffle(all_files)
     return all_files

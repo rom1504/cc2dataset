@@ -161,7 +161,7 @@ def cc2dataset(
         return spark_builder()
 
     if resume is None:
-        cc_index_files = read_index_files(crawl_index_count, files_count, source_cc_protocol, ccfile, crawl_index_list)
+        cc_index_files = read_index_files(crawl_index_count, files_count, source_cc_protocol, ccfile, crawl_index_list, shuffle )
         # write ccfile index files to disk in output_path with fsspec
         with fsspec.open(f"{output_path}/crawl_index_files.txt", "w", encoding="utf8") as f:
             f.write("\n".join(cc_index_files))
