@@ -7,13 +7,14 @@ from resiliparse.extract.html2text import extract_plain_text
 from io import BytesIO
 from timeit import default_timer as timer
 from .lang_utils import LangDetection,detect_licence
-#from .perplexity_utils import load_perplexity_model
+from .kenlm import PerplexityScorer
 
 
-def extract_documents_from_warc(stream, kenlm_model_dir):
+
+def extract_documents_from_warc(stream):
     """Extract document from stream"""
     all_extend = []
-    permodel = load_perplexity_model(kenlm_model_dir)
+    permodel = PerplexityScorer()
     # download https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin and store to a path
     lang_model_path = "lid_model_dump/lid.176.bin"
     detector = LangDetection(lang_model_path)
@@ -50,8 +51,8 @@ def extract_documents_from_warc(stream, kenlm_model_dir):
                     cre["url"] = url
                     cre["uid"] = str(hashlib.md5((text+url).encode()).hexdigest())
                     cre["lang"],_ = detector.detect(text)
-                    cre["perplexity"] = permodel(text)
                     cre['license'] = licence
+                    cre.update(permodel(text, prefix="perplexity/"))
                     all_extend.append(cre)
 
     except Exception as e:  # pylint: disable=broad-except
