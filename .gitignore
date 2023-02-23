@@ -12,3 +12,6 @@ wandb
 **/*.tar.gz
 .mypy_cache
 .pytest_cache
+assets/*.bin
+build/*
+assets/*.out
