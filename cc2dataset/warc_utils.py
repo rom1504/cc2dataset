@@ -8,16 +8,12 @@ from io import BytesIO
 from timeit import default_timer as timer
 from .lang_utils import LangDetection,detect_licence
 from loguru import logger
-constants_path = pathlib.Path(__file__)
-M_PATH = constants_path.parent
-
 
 def extract_documents_from_warc(stream):
     """Extract document from stream"""
     all_extend = []
-    #permodel = PerplexityScorer()
     # download https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin and store to a path
-    #lang_model_path = "/fsx/home-harrysaini/ccspark/cc2dataset/assets/lid.176.bin"
+    lang_model_path = "/fsx/home-harrysaini/ccspark/cc2dataset/assets/lid.176.bin"
     detector = LangDetection(lang_model_path)
     try:
         for idx, record in enumerate(ArchiveIterator(stream, max_content_length=4 * 1024**2)):
