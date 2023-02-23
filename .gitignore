@@ -14,3 +14,4 @@ wandb
 .pytest_cache
 assets/*.bin
 build/*
+assets/*.out
