@@ -9,5 +9,5 @@ if __name__ == "__main__":
         master="local",
         num_cores=16,
         mem_gb=16,
-        source_cc_protocol="http"
+        source_cc_protocol="http",
     )

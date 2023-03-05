@@ -140,7 +140,8 @@ def extract_documents_from_wat(stream, document_type):
                 continue
 
             links = metadata["Links"]
-
+            cc_filename = record_data["Container"]["Filename"]
+            page_url = envelope["WARC-Header-Metadata"]["WARC-Target-URI"]
             # extract base URL to resolve relative URLs
             base_url = envelope["WARC-Header-Metadata"]["WARC-Target-URI"]
             if "Head" in metadata and "Base" in metadata["Head"]:
@@ -158,6 +159,8 @@ def extract_documents_from_wat(stream, document_type):
             ]
             for link in filtered_links:
                 link["uid"] = str(hashlib.md5((link["alt"] + link["url"]).encode()).hexdigest())
+                link["cc_filename"] = cc_filename
+                link["page_url"] = page_url
             all_links.extend(filtered_links)
     except Exception as e:  # pylint: disable=broad-except
         logger.info(e)
@@ -184,7 +187,7 @@ def process_wat(path, document_type):
                 time.sleep(1)
 
         for e in extract_documents_from_wat(tf, document_type):
-            yield (e["uid"], e["url"], e["alt"])
+            yield (e["uid"], e["url"], e["alt"], e["cc_filename"], e["page_url"])
     end_read = timer()
     tot_read_time = end_read - begin_read
     logger.info(f"Took {tot_read_time} to parse")
@@ -266,7 +269,7 @@ def process_one_part(output_path, wat_index_files, build_spark, shuffle, documen
         yield from process_wat(prefix + x[0], document_type)
 
     output = wat_rdd.mapPartitions(extract)
-    df = output.toDF(["uid", "url", "alt"])
+    df = output.toDF(["uid", "url", "alt", "cc_filename", "page_url"])
 
     deduplicate_repartition_count(df, output_path, wat_count, spark, shuffle)
 
