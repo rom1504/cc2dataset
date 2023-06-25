@@ -1,3 +1,11 @@
+## 1.5.0
+
+* improve document extension list
+* add a few more video extension
+* Implement relative links (thanks Sebastian Nagel)
+* add filename and url metadata (thanks @marianna13)
+* add filename and url metadata
+
 ## 1.4.0
 
 * Add text and video document types
