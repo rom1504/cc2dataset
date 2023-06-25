@@ -17,14 +17,14 @@ import math
 import time
 from .spark_session_builder import build_spark_session
 from io import BytesIO
+from urllib.parse import urljoin
 
 
 def valid_video_link(link):
-    valid_http = link.get("url", "").startswith("http")
     valid_video = any(
         link.get("url", "").endswith(ext) for ext in [".avi", ".mp4", ".mkv", ".webm", ".mov", ".mpg", ".mpeg", ".m4v"]
     )
-    return valid_http and valid_video
+    return valid_video
 
 
 def extract_video_from_links(links):
@@ -54,8 +54,6 @@ text_extensions = set(
 
 
 def valid_text_link(link):
-    if not link.get("url", "").startswith("http"):
-        return False
     splits = link.get("url", "").split(".")
     if len(splits) < 2:
         return False
@@ -70,9 +68,8 @@ def extract_text_from_links(links):
 
 
 def valid_audio_link(link):
-    valid_http = link.get("url", "").startswith("http")
     valid_audio = any(link.get("url", "").endswith(ext) for ext in [".ogg", ".wav", ".mp3", ".flac", ".m4a"])
-    return valid_http and valid_audio
+    return valid_audio
 
 
 def extract_audio_from_links(links):
@@ -84,14 +81,26 @@ def extract_audio_from_links(links):
 def valid_image_link(link):
     valid_path = link.get("path", "") == "IMG@/src"
     valid_alt = len(link.get("alt", "")) > 0
-    valid_http = link.get("url", "").startswith("http")
-    return valid_path and valid_http and valid_alt
+    return valid_path and valid_alt
 
 
 def extract_image_from_links(links):
     """Extract image from links"""
     filtered_links = [{"url": link["url"], "alt": link["alt"]} for link in links if valid_image_link(link)]
     return filtered_links
+
+
+def make_link_absolute(url, base_url):
+    if url.startswith("http://") or url.startswith("https://"):
+        return url
+    try:
+        return urljoin(base_url, url)
+    except ValueError:
+        return url
+
+
+def make_links_absolute(links, base_url):
+    return [{"url": make_link_absolute(link["url"], base_url), "alt": link["alt"]} for link in links]
 
 
 def extract_documents_from_links(links, document_type):
@@ -132,7 +141,21 @@ def extract_documents_from_wat(stream, document_type):
 
             links = metadata["Links"]
 
+            # extract base URL to resolve relative URLs
+            base_url = envelope["WARC-Header-Metadata"]["WARC-Target-URI"]
+            if "Head" in metadata and "Base" in metadata["Head"]:
+                try:
+                    base_url = urljoin(base_url, metadata["Head"]["Base"])
+                except ValueError:
+                    pass
+
             filtered_links = extract_documents_from_links(links, document_type)
+            filtered_links = make_links_absolute(filtered_links, base_url)
+            filtered_links = [
+                link
+                for link in filtered_links
+                if link["url"].startswith("http://") or link["url"].startswith("https://")
+            ]
             for link in filtered_links:
                 link["uid"] = str(hashlib.md5((link["alt"] + link["url"]).encode()).hexdigest())
             all_links.extend(filtered_links)
