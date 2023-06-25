@@ -29,6 +29,7 @@ CC is big and located at s3 us east 1, so it makes a lot of sense in term of net
 
 This tool support extracting several documents from CC:
 * image/text: about 300B after dedup
+* image/text even with empty text: estimated 1T
 * audio/text: about 2B after dedup
 * text doc : about 10B after dedup
 * video/text: about 2B after dedup
