@@ -11,6 +11,6 @@ if __name__ == "__main__":
         url = "https://data.commoncrawl.org/" + wat
 
     results = process_wat(url, "image")
-    df = pd.DataFrame(results, columns=["uid", "url", "alt"])
+    df = pd.DataFrame(results, columns=["uid", "url", "alt", "cc_filename", "page_url"])
     df.to_parquet(os.getcwd() + "/output.parquet")
     print(df)
