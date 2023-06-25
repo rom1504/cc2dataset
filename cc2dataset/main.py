@@ -20,18 +20,15 @@ from io import BytesIO
 from urllib.parse import urljoin
 
 
-def valid_video_link(link, base_url):
+def valid_video_link(link):
     valid_video = any(
         link.get("url", "").endswith(ext) for ext in [".avi", ".mp4", ".mkv", ".webm", ".mov", ".mpg", ".mpeg", ".m4v"]
     )
-    if not valid_video:
-        return False
-    link_make_absolute_url(link, base_url, "url")
-    return link.get("url", "").startswith("http")
+    return valid_video
 
 
-def extract_video_from_links(links, base_url):
-    filtered_links = [{"url": link["url"], "alt": link.get("text", "")} for link in links if valid_video_link(link, base_url)]
+def extract_video_from_links(links):
+    filtered_links = [{"url": link["url"], "alt": link.get("text", "")} for link in links if valid_video_link(link)]
     return filtered_links
 
 
@@ -56,73 +53,67 @@ text_extensions = set(
 )
 
 
-def valid_text_link(link, base_url):
+def valid_text_link(link):
     splits = link.get("url", "").split(".")
     if len(splits) < 2:
         return False
     if splits[-1] not in text_extensions:
         return False
-    link_make_absolute_url(link, base_url, "url")
-    return link.get("url", "").startswith("http")
+    return True
 
 
-def extract_text_from_links(links, base_url):
-    filtered_links = [{"url": link["url"], "alt": link.get("text", "")} for link in links if valid_text_link(link, base_url)]
+def extract_text_from_links(links):
+    filtered_links = [{"url": link["url"], "alt": link.get("text", "")} for link in links if valid_text_link(link)]
     return filtered_links
 
 
-def valid_audio_link(link, base_url):
+def valid_audio_link(link):
     valid_audio = any(link.get("url", "").endswith(ext) for ext in [".ogg", ".wav", ".mp3", ".flac", ".m4a"])
-    if valid_audio:
-        return False
-    link_make_absolute_url(link, base_url, "url")
-    return link.get("url", "").startswith("http")
+    return valid_audio
 
 
-def extract_audio_from_links(links, base_url):
+def extract_audio_from_links(links):
     """Extract image from links"""
-    filtered_links = [{"url": link["url"], "alt": link.get("text", "")} for link in links if valid_audio_link(link, base_url)]
+    filtered_links = [{"url": link["url"], "alt": link.get("text", "")} for link in links if valid_audio_link(link)]
     return filtered_links
 
 
-def valid_image_link(link, base_url):
+def valid_image_link(link):
     valid_path = link.get("path", "") == "IMG@/src"
     valid_alt = len(link.get("alt", "")) > 0
-    if not (valid_path and valid_alt):
-        return False
-    link_make_absolute_url(link, base_url, "url")
-    return link.get("url", "").startswith("http")
+    return valid_path and valid_alt
 
 
-def extract_image_from_links(links, base_url):
+def extract_image_from_links(links):
     """Extract image from links"""
-    filtered_links = [{"url": link["url"], "alt": link["alt"]} for link in links if valid_image_link(link, base_url)]
+    filtered_links = [{"url": link["url"], "alt": link["alt"]} for link in links if valid_image_link(link)]
     return filtered_links
 
 
-def link_make_absolute_url(link, base_url, key="url"):
-    if not key in link:
-        return
-    url = link[key]
+def make_link_absolute(url, base_url):
     if url.startswith("http://") or url.startswith("https://"):
-        return
+        return url
     try:
-        link[key] = urljoin(base_url, url)
+        return urljoin(base_url, url)
     except ValueError:
-        return
+        return url
 
 
-def extract_documents_from_links(links, document_type, base_url):
+def make_links_absolute(links, base_url):
+    return [{"url": make_link_absolute(link["url"], base_url), "alt": link["alt"]} for link in links]
+
+
+def extract_documents_from_links(links, document_type):
     """Extract documents from links ; this function returns a list of dict {"alt": ..., "url": ...}"""
 
     if document_type == "image":
-        return extract_image_from_links(links, base_url)
+        return extract_image_from_links(links)
     elif document_type == "audio":
-        return extract_audio_from_links(links, base_url)
+        return extract_audio_from_links(links)
     elif document_type == "text":
-        return extract_text_from_links(links, base_url)
+        return extract_text_from_links(links)
     elif document_type == "video":
-        return extract_video_from_links(links, base_url)
+        return extract_video_from_links(links)
     else:
         raise ValueError(f"Unknown document type {document_type}")
 
@@ -155,9 +146,16 @@ def extract_documents_from_wat(stream, document_type):
             if "Head" in metadata and "Base" in metadata["Head"]:
                 try:
                     base_url = urljoin(base_url, metadata["Head"]["Base"])
-                except ValueError: pass
+                except ValueError:
+                    pass
 
-            filtered_links = extract_documents_from_links(links, document_type, base_url)
+            filtered_links = extract_documents_from_links(links, document_type)
+            filtered_links = make_links_absolute(filtered_links, base_url)
+            filtered_links = [
+                link
+                for link in filtered_links
+                if link["url"].startswith("http://") or link["url"].startswith("https://")
+            ]
             for link in filtered_links:
                 link["uid"] = str(hashlib.md5((link["alt"] + link["url"]).encode()).hexdigest())
             all_links.extend(filtered_links)
