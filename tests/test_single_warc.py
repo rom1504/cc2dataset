@@ -15,13 +15,22 @@ def retry(f, n=3):
             print(e)
             return retry(f, n - 1)
 
+
 cols = ["uid", "url", "alt", "cc_filename", "page_url"]
+
 
 def test_single_warc_image():
     results = retry(lambda: process_wat(test_url, "image"))
     df = pd.DataFrame(results, columns=cols)
     assert len(df) == 405232
     assert df["uid"][3] == "2a64f921d7ced2fed91e82eeb56338cd"
+
+
+def test_single_warc_image_only():
+    results = retry(lambda: process_wat(test_url, "image_only"))
+    df = pd.DataFrame(results, columns=cols)
+    assert len(df) == 733994
+    assert df["uid"][3] == "331e6480d20ea2f51a5557ca7e20909a"
 
 
 def test_single_warc_audio():

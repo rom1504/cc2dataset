@@ -90,6 +90,17 @@ def extract_image_from_links(links):
     return filtered_links
 
 
+def valid_image_only_link(link):
+    valid_path = link.get("path", "") == "IMG@/src"
+    return valid_path
+
+
+def extract_image_only_from_links(links):
+    """Extract image from links even when no caption is present"""
+    filtered_links = [{"url": link["url"], "alt": link.get("alt", "")} for link in links if valid_image_only_link(link)]
+    return filtered_links
+
+
 def make_link_absolute(url, base_url):
     if url.startswith("http://") or url.startswith("https://"):
         return url
@@ -108,6 +119,8 @@ def extract_documents_from_links(links, document_type):
 
     if document_type == "image":
         return extract_image_from_links(links)
+    elif document_type == "image_only":
+        return extract_image_only_from_links(links)
     elif document_type == "audio":
         return extract_audio_from_links(links)
     elif document_type == "text":
