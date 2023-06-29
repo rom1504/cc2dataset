@@ -28,11 +28,12 @@ CC is big and located at s3 us east 1, so it makes a lot of sense in term of net
 ## Document type
 
 This tool support extracting several documents from CC:
-* image/text: about 300B after dedup
-* image/text even with empty text: estimated 1T
-* audio/text: about 2B after dedup
-* text doc : about 10B after dedup
-* video/text: about 2B after dedup
+
+* image/text: 88B after dedup
+* image/text even with empty text: 229B after dedup
+* audio/text: 500M after dedup
+* text doc : 5B after dedup
+* video/text: 300M after dedup
 
 They can be selected with eg `--document_type audio`.
 You may experiment with more document kinds by running `python example single_warc_example.py` and exploring the resulting output.parquet.
