@@ -70,7 +70,7 @@ def process_one_part(output_path, cc_index_files, build_spark, shuffle, document
 
     output = wat_rdd.mapPartitions(extract)
     # e["uid"], e["url"], e["text"],e['lang'],e['license'],e['perplexity']
-    df = output.toDF(["uid", "url", "text","lang","license"])
+    df = output.toDF(["uid", "url", "text","lang","license","fwords","cratio","crep","swords","wnum","perplexity"])
 
     deduplicate_repartition_count(df, output_path, ccfile_count, spark, shuffle)
 

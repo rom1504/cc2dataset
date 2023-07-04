@@ -12,3 +12,5 @@ squeakily
 spacy
 spacy_fastlang
 resiliparse
+pip install https://github.com/kpu/kenlm/archive/master.zip sentencepiece
+pip install git+https://github.com/CarperAI/squeakily.git
