@@ -12,6 +12,8 @@ It also runs deduplication against url+text in order to save on output space and
 This makes it possible to do the first step of building a dataset like [laion5B](https://laion.ai/blog/laion-5b/) in 70k cpu core hours. (`5*10^6*50/(3600)`)
 That's `$2.8k` using aws EC2 (0.04$/core hour)
 
+If you believe in making reusable tools to make data easy to use for ML and you would like to contribute, please join the [DataToML](https://discord.gg/ep8yUUtCnp) chat.
+
 ## Intended usage
 
 This tool produces a collection of link + caption. It is meant as the stage 1 of creating a dataset. It does deduplication and as minimal as possible filtering (does it look like an url / is the caption non empty).
