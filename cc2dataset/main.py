@@ -31,8 +31,7 @@ def valid_video_link(link):
 
 
 def extract_video_from_links(links):
-    filtered_links = [{"url": link["url"], "alt": link.get(
-        "text", "")} for link in links if valid_video_link(link)]
+    filtered_links = [{"url": link["url"], "alt": link.get("text", "")} for link in links if valid_video_link(link)]
     return filtered_links
 
 
@@ -67,21 +66,18 @@ def valid_text_link(link):
 
 
 def extract_text_from_links(links):
-    filtered_links = [{"url": link["url"], "alt": link.get(
-        "text", "")} for link in links if valid_text_link(link)]
+    filtered_links = [{"url": link["url"], "alt": link.get("text", "")} for link in links if valid_text_link(link)]
     return filtered_links
 
 
 def valid_audio_link(link):
-    valid_audio = any(link.get("url", "").endswith(ext)
-                      for ext in [".ogg", ".wav", ".mp3", ".flac", ".m4a"])
+    valid_audio = any(link.get("url", "").endswith(ext) for ext in [".ogg", ".wav", ".mp3", ".flac", ".m4a"])
     return valid_audio
 
 
 def extract_audio_from_links(links):
     """Extract image from links"""
-    filtered_links = [{"url": link["url"], "alt": link.get(
-        "text", "")} for link in links if valid_audio_link(link)]
+    filtered_links = [{"url": link["url"], "alt": link.get("text", "")} for link in links if valid_audio_link(link)]
     return filtered_links
 
 
@@ -93,8 +89,7 @@ def valid_image_link(link):
 
 def extract_image_from_links(links):
     """Extract image from links"""
-    filtered_links = [{"url": link["url"], "alt": link["alt"]}
-                      for link in links if valid_image_link(link)]
+    filtered_links = [{"url": link["url"], "alt": link["alt"]} for link in links if valid_image_link(link)]
     return filtered_links
 
 
@@ -105,8 +100,7 @@ def valid_image_only_link(link):
 
 def extract_image_only_from_links(links):
     """Extract image from links even when no caption is present"""
-    filtered_links = [{"url": link["url"], "alt": link.get(
-        "alt", "")} for link in links if valid_image_only_link(link)]
+    filtered_links = [{"url": link["url"], "alt": link.get("alt", "")} for link in links if valid_image_only_link(link)]
     return filtered_links
 
 
@@ -206,8 +200,7 @@ def extract_documents_from_wat(stream, document_type):
                 if link["url"].startswith("http://") or link["url"].startswith("https://")
             ]
             for link in filtered_links:
-                link["uid"] = str(hashlib.md5(
-                    (link["alt"] + link["url"]).encode()).hexdigest())
+                link["uid"] = str(hashlib.md5((link["alt"] + link["url"]).encode()).hexdigest())
                 link["cc_filename"] = cc_filename
                 link["page_url"] = page_url
             all_links.extend(filtered_links)
@@ -226,8 +219,7 @@ def process_wat(path, document_type):
 
     ext = path.replace(".gz", "").split(".")[-1].replace("/", "").lower()
     if ext not in ["wat", "warc"]:
-        raise ValueError(
-            f"Extension can only be either 'wat' or 'warc', you provied {ext}")
+        raise ValueError(f"Extension can only be either 'wat' or 'warc', you provied {ext}")
 
     begin_read = timer()
     if ext == "warc" and document_type == "iframe":
@@ -252,11 +244,9 @@ def process_wat(path, document_type):
                 for e in extract_documents_from_wat(tf, document_type):
                     yield (e["uid"], e["url"], e["alt"], e["cc_filename"], e["page_url"])
             elif ext == "wat" and document_type == "iframe":
-                raise ValueError(
-                    f"Document type {document_type} is not suppeorted by file type {ext}")
+                raise ValueError(f"Document type {document_type} is not suppeorted by file type {ext}")
             else:
-                raise ValueError(
-                    f"Unknown document type {document_type} and file type {ext}")
+                raise ValueError(f"Unknown document type {document_type} and file type {ext}")
     end_read = timer()
     tot_read_time = end_read - begin_read
     logger.info(f"Took {tot_read_time} to parse")
@@ -269,19 +259,16 @@ def get_cc_wat_links(source_cc_protocol, ext):
         links = ["s3://" + e for e in fs.glob(p + f"/*/{ext}.paths.gz")]
         return links
     elif source_cc_protocol == "http":
-        fs, p = fsspec.core.url_to_fs(
-            "https://commoncrawl.org/the-data/get-started/")
+        fs, p = fsspec.core.url_to_fs("https://commoncrawl.org/the-data/get-started/")
         a = fs.open(p).read()
         l = a.splitlines()
         l = [e.decode("utf8").replace("[WARC] ", "") for e in l]
         l = [e for e in l if "<li>s3://commoncrawl/crawl-data/" in e]
         l = [
-            e.split(" ")[0].replace("<li>s3://commoncrawl/",
-                                    "https://data.commoncrawl.org/").replace("<wbr>", "")
+            e.split(" ")[0].replace("<li>s3://commoncrawl/", "https://data.commoncrawl.org/").replace("<wbr>", "")
             for e in l
         ]
-        l = [(e + f"/{ext}.paths.gz").replace(f"//{ext}", f"/{ext}")
-             for e in l]
+        l = [(e + f"/{ext}.paths.gz").replace(f"//{ext}", f"/{ext}") for e in l]
 
         return l
     else:
@@ -298,8 +285,7 @@ def read_wat_index_files(shard_count, wat_count, source_cc_protocol, ext):
     """Read all wat index files"""
     cc_wat_links = get_cc_wat_links(source_cc_protocol, ext)
     if shard_count is not None:
-        cc_wat_links = cc_wat_links[-shard_count:
-                                    ]  # pylint: disable=invalid-unary-operand-type
+        cc_wat_links = cc_wat_links[-shard_count:]  # pylint: disable=invalid-unary-operand-type
     all_wats = []
     with ThreadPool(16) as pool:
         for wats in pool.imap_unordered(read_wat_index_file, cc_wat_links):
@@ -354,8 +340,7 @@ def get_last_successful_part(output_path):
     output_path = output_path.replace("s3a", "s3")
     fs, _ = fsspec.core.url_to_fs(output_path)
     successful_parts = fs.glob(output_path + "/*/_SUCCESS")
-    last_part = sorted([int(e.split("/")[-2].split("_")[-1])
-                       for e in successful_parts if "merged" not in e])[-1]
+    last_part = sorted([int(e.split("/")[-2].split("_")[-1]) for e in successful_parts if "merged" not in e])[-1]
     return last_part
 
 
@@ -376,10 +361,8 @@ def process_multi_part(
         end = (i + 1) * wat_per_part
         part_path = f"{output_path}/part_{i}"
         part_paths.append(part_path)
-        logger.info(
-            f"Processing part {i} from {start} to {end} into {part_path}")
-        process_one_part(
-            part_path, wat_index_files[start:end], build_spark, False, document_type, source_cc_protocol)
+        logger.info(f"Processing part {i} from {start} to {end} into {part_path}")
+        process_one_part(part_path, wat_index_files[start:end], build_spark, False, document_type, source_cc_protocol)
 
     spark = build_spark()
     logger.info("Merging parts")
@@ -391,8 +374,7 @@ def process_multi_part(
         else:
             df = df.union(spark.read.parquet(part_path))
 
-    deduplicate_repartition_count(
-        df, output_path + "/merged", wat_count, spark, shuffle)
+    deduplicate_repartition_count(df, output_path + "/merged", wat_count, spark, shuffle)
 
 
 def get_date_str():
@@ -445,8 +427,7 @@ def cc2dataset(
         return spark_builder()
 
     if resume is None:
-        wat_index_files = read_wat_index_files(
-            wat_index_count, wat_count, source_cc_protocol, file_type)
+        wat_index_files = read_wat_index_files(wat_index_count, wat_count, source_cc_protocol, file_type)
         # write wat index files to disk in output_path with fsspec
         with fsspec.open(f"{output_path}/{file_type}_index_files.txt", "w", encoding="utf8") as f:
             f.write("\n".join(wat_index_files))
@@ -455,8 +436,7 @@ def cc2dataset(
             wat_index_files = f.read().splitlines()
 
     if multipart is None:
-        process_one_part(output_path, wat_index_files, build_spark,
-                         shuffle, document_type, source_cc_protocol)
+        process_one_part(output_path, wat_index_files, build_spark, shuffle, document_type, source_cc_protocol)
     else:
         process_multi_part(
             output_path, wat_index_files, build_spark, multipart, shuffle, resume, document_type, source_cc_protocol
