@@ -12,6 +12,7 @@ from multiprocessing.pool import ThreadPool
 from pyspark import SparkContext
 from pyspark.sql.functions import rand
 from pyspark.sql import SparkSession
+from bs4 import BeautifulSoup
 import random
 import math
 import time
@@ -19,18 +20,32 @@ from .spark_session_builder import build_spark_session
 from io import BytesIO
 from urllib.parse import urljoin
 from yt_dlp.extractor import gen_extractor_classes, GenericIE
-    
 
-def valid_video_platform_link(link):
-    if "amazon" in link.get("url", "") or "drive" in link.get("url", "") or "twitter" in link.get("url", "") or "pinterest" in link.get("url", "") or "youtube" in link.get("url", "") or "instagram" in link.get("url", ""):
-        return False
-    for ie in gen_extractor_classes():
-        if ie != GenericIE and ie.suitable(link.get("url", "")):
-            return True
+import re
+def is_youtube_video(url):
+  if re.match('^https?://(www.)?youtube.com/watch\?v=.+$', url):
+    return True
+  if re.match('^https?://(www.)?youtube.com/v/.+$', url):
+    return True
+  if re.match('^https?://(www.)?youtube.com/embed/.+$', url):
+    return True
+  if re.match('^https?://(www.)?youtu.be/.+$', url):
+    return True
+
+  return False
+
+
+def is_bilibili_video(url):
+    if re.match("https?://(?:www\.)?bilibili\.com/(?:video/|festival/\w+\?(?:[^#]*&)?bvid=)[aAbB][vV](?P<id>[^/?#&]+)",url):
+        return True
+
     return False
 
+def valid_video_platform_link(link):
+    return is_bilibili_video(link.get("url", ""))
+
+
 def extract_video_platform_from_links(links):
-    #links = links[:100]
     filtered_links = [{"url": link["url"], "alt": link.get("text", "")} for link in links if valid_video_platform_link(link)]
     return filtered_links
 
@@ -205,16 +220,17 @@ def process_wat(path, document_type):
     """Process a single wat file"""
     begin_read = timer()
     with fsspec.open(path, "rb") as f:
-        for i in range(10):
+        retries = 1000
+        for i in range(retries):
             try:
                 tf = BytesIO(f.read())
                 break
             except Exception as ex:  # pylint: disable=broad-except
-                if i == 9:
-                    logger.info("failed 10 times, skipping ", path)
+                if i == retries-1:
+                    logger.info(f"failed {retries} times, skipping ", path)
                     return
                 logger.info(ex)
-                logger.info(f"retrying reading {i}/10")
+                logger.info(f"retrying reading {i}/{retries}")
                 time.sleep(1)
 
         for e in extract_documents_from_wat(tf, document_type):
@@ -233,22 +249,29 @@ def get_cc_wat_links(source_cc_protocol):
     elif source_cc_protocol == "http":
         fs, p = fsspec.core.url_to_fs("https://commoncrawl.org/the-data/get-started/")
         a = fs.open(p).read()
-        l = a.splitlines()
-        l = [e.decode("utf8").replace("[WARC] ", "") for e in l]
-        l = [e for e in l if "<li>s3://commoncrawl/crawl-data/" in e]
-        l = [
-            e.split(" ")[0].replace("<li>s3://commoncrawl/", "https://data.commoncrawl.org/").replace("<wbr>", "")
-            for e in l
-        ]
-        l = [(e + "/wat.paths.gz").replace("//wat", "/wat") for e in l]
-        return l
+        soup = BeautifulSoup(a, 'html.parser')
+        h6_content = [e.text for e in soup.find_all('h6')][:-3]
+        h6_content= [e for e in h6_content if e != "CC-MAIN-2013-20" ]
+        results = [f"https://data.commoncrawl.org/crawl-data/{e}/wat.paths.gz" for e in h6_content]
+        return results
     else:
         raise ValueError(f"Unknown protocol {source_cc_protocol}")
 
 
 def read_wat_index_file(wat_index):
-    with fsspec.open(wat_index, "rb", compression="gzip") as f:
-        wats = [a.decode("utf8").strip() for a in f.readlines()]
+    retries = 1000
+    for i in range(retries):
+        try:
+            with fsspec.open(wat_index, "rb", compression="gzip") as f:
+                wats = [a.decode("utf8").strip() for a in f.readlines()]
+            break
+        except Exception as ex:  # pylint: disable=broad-except
+            if i == retries-1:
+                logger.info(f"failed {retries} times, skipping ", wat_index)
+                return
+            logger.info(ex)
+            logger.info(f"retrying reading {i}/{retries}")
+            time.sleep(1)
     return wats
 
 
