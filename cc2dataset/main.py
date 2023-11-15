@@ -41,9 +41,38 @@ def is_bilibili_video(url):
 
     return False
 
-def valid_video_platform_link(link):
+def valid_video_platform_link_(link):
     return is_bilibili_video(link.get("url", ""))
 
+import yt_dlp
+
+generic_extractors = [yt_dlp.extractor.generic.GenericIE, yt_dlp.extractor.lazy_extractors.GenericIE]
+
+FILTERED_EXTRACTORS = {ie.IE_NAME:ie for ie in yt_dlp.list_extractor_classes() 
+                       if ie not in generic_extractors 
+                       and "porn" not in ie.IE_NAME.lower()
+                       and "adult" not in ie.IE_NAME.lower()
+                       and "xxx" not in ie.IE_NAME.lower()
+                       and "xvideos" not in ie.IE_NAME.lower()
+                       and "xhamster" not in ie.IE_NAME.lower()
+                       and "redtube" not in ie.IE_NAME.lower()
+                       and "xtube" not in ie.IE_NAME.lower()
+                       and "xstream" not in ie.IE_NAME.lower()
+                       and "xfileshare" not in ie.IE_NAME.lower()
+                       and "sex" not in ie.IE_NAME.lower()
+                       }
+
+
+# print(FILTERED_EXTRACTORS.keys())
+# print(len(FILTERED_EXTRACTORS.keys()))
+
+def is_link_valid(link, extractors):
+    """Check if link is valid given a list of extractors."""
+    return any([ie.suitable(link) for ie in extractors])
+
+def valid_video_platform_link(link):
+    """Check if link is a valid video platform link."""
+    return  is_link_valid(link.get("url", ""), FILTERED_EXTRACTORS.values())
 
 def extract_video_platform_from_links(links):
     filtered_links = [{"url": link["url"], "alt": link.get("text", "")} for link in links if valid_video_platform_link(link)]
@@ -206,8 +235,6 @@ def extract_documents_from_wat(stream, document_type):
                 link["cc_filename"] = cc_filename
                 link["page_url"] = page_url
             all_links.extend(filtered_links)
-            if len(all_links) > 100:
-                return all_links
     except Exception as e:  # pylint: disable=broad-except
         logger.info(e)
         logger.info("A shard failed to parse")
@@ -251,7 +278,7 @@ def get_cc_wat_links(source_cc_protocol):
         a = fs.open(p).read()
         soup = BeautifulSoup(a, 'html.parser')
         h6_content = [e.text for e in soup.find_all('h6')][:-3]
-        h6_content= [e for e in h6_content if e != "CC-MAIN-2013-20" ]
+        h6_content= [e for e in h6_content ]
         results = [f"https://data.commoncrawl.org/crawl-data/{e}/wat.paths.gz" for e in h6_content]
         return results
     else:
