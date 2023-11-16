@@ -20,6 +20,8 @@ from .spark_session_builder import build_spark_session
 from io import BytesIO
 from urllib.parse import urljoin
 from yt_dlp.extractor import gen_extractor_classes, GenericIE
+from urllib.parse import urlparse
+import traceback
 
 import re
 def is_youtube_video(url):
@@ -62,17 +64,56 @@ FILTERED_EXTRACTORS = {ie.IE_NAME:ie for ie in yt_dlp.list_extractor_classes()
                        and "sex" not in ie.IE_NAME.lower()
                        }
 
+def extract_test(extractor):
+    tests = []
+    if hasattr(extractor, "_TEST") and extractor._TEST is not None:
+        tests = [extractor._TEST["url"]]
+    elif hasattr(extractor, "_TESTS") and extractor._TESTS is not None:
+        tests = [x["url"] for x in extractor._TESTS]
+    return tests
 
-# print(FILTERED_EXTRACTORS.keys())
-# print(len(FILTERED_EXTRACTORS.keys()))
+def normalize_domain(domain):
+    domain = domain.lower()
+    if domain.startswith("www."):
+        domain = domain[4:]
+    return domain
 
-def is_link_valid(link, extractors):
+def extract_domain(url):
+    try:
+        parsed_url = urlparse(url)
+        domain = parsed_url.netloc
+        return normalize_domain(domain)
+    except:
+        return ""
+
+DOMAIN_DICT = {}
+
+for extractor in FILTERED_EXTRACTORS.values():
+    for url in extract_test(extractor):
+        domain = extract_domain(url)
+    if domain in DOMAIN_DICT:
+        DOMAIN_DICT[domain] = DOMAIN_DICT[domain] + [extractor]
+    else:
+        DOMAIN_DICT[domain] = [extractor]
+
+def is_link_suitable(link, extractors):
+    """Check if link is valid given an extractor."""
+    try:
+        return any([ie.suitable(link) for ie in extractors])
+    except:
+        return False
+
+def is_link_valid(link, domain_dict):
     """Check if link is valid given a list of extractors."""
-    return any([ie.suitable(link) for ie in extractors])
+    is_valid = False
+    domain = extract_domain(link)
+    if domain in domain_dict:
+        is_valid = is_link_suitable(link, domain_dict[domain])
+    return is_valid
 
 def valid_video_platform_link(link):
     """Check if link is a valid video platform link."""
-    return  is_link_valid(link.get("url", ""), FILTERED_EXTRACTORS.values())
+    return is_link_valid(link.get("url", ""), DOMAIN_DICT)
 
 def extract_video_platform_from_links(links):
     filtered_links = [{"url": link["url"], "alt": link.get("text", "")} for link in links if valid_video_platform_link(link)]
@@ -235,7 +276,10 @@ def extract_documents_from_wat(stream, document_type):
                 link["cc_filename"] = cc_filename
                 link["page_url"] = page_url
             all_links.extend(filtered_links)
+            #if len(all_links) > 1000:
+            #    return all_links
     except Exception as e:  # pylint: disable=broad-except
+        traceback.print_exc() 
         logger.info(e)
         logger.info("A shard failed to parse")
         return []
