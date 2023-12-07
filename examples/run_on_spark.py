@@ -6,9 +6,9 @@ if __name__ == "__main__":
     cc2dataset(
         "/tmp/tmp_output",
         wat_index_count=None,
-        wat_count=10,
+        wat_count=1000,
         master="local",
-        num_cores=32,
+        num_cores=16,
         mem_gb=8,
         document_type="video_platform",
         source_cc_protocol="http"
