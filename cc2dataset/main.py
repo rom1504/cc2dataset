@@ -106,12 +106,13 @@ DOMAIN_IES_DICT = {}
 for extractor in FILTERED_EXTRACTORS.values():
     for url in extract_test(extractor):
         domain = extract_domain(url)
+        if domain == "":
+            continue
         if domain in DOMAIN_IES_DICT:
             if extractor not in DOMAIN_IES_DICT[domain]:
                 DOMAIN_IES_DICT[domain] = DOMAIN_IES_DICT[domain] + [extractor]
         else:
             DOMAIN_IES_DICT[domain] = [extractor]
-
 
 
 def is_link_suitable(link, extractors):
