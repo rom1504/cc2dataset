@@ -12,13 +12,131 @@ from multiprocessing.pool import ThreadPool
 from pyspark import SparkContext
 from pyspark.sql.functions import rand
 from pyspark.sql import SparkSession
+from bs4 import BeautifulSoup
 import random
 import math
 import time
 from .spark_session_builder import build_spark_session
 from io import BytesIO
 from urllib.parse import urljoin
+from yt_dlp.extractor import gen_extractor_classes, GenericIE
+from urllib.parse import urlparse
+import traceback
 
+import re
+def is_youtube_video(url):
+  if re.match('^https?://(www.)?youtube.com/watch\?v=.+$', url):
+    return True
+  if re.match('^https?://(www.)?youtube.com/v/.+$', url):
+    return True
+  if re.match('^https?://(www.)?youtube.com/embed/.+$', url):
+    return True
+  if re.match('^https?://(www.)?youtu.be/.+$', url):
+    return True
+
+  return False
+
+
+def is_bilibili_video(url):
+    if re.match("https?://(?:www\.)?bilibili\.com/(?:video/|festival/\w+\?(?:[^#]*&)?bvid=)[aAbB][vV](?P<id>[^/?#&]+)",url):
+        return True
+
+    return False
+
+def valid_video_platform_link_(link):
+    return is_bilibili_video(link.get("url", ""))
+
+import yt_dlp
+import unicodedata
+
+generic_extractors = [yt_dlp.extractor.generic.GenericIE, yt_dlp.extractor.lazy_extractors.GenericIE]
+porn_patterns = ["porn", "adult", "xxx", "xvideos", "xhamster", "redtube", "xtube", "xstream", "xfileshare", "sex"]
+playlist_patterns = ["Playlist", "Category", "User"]
+domain_patterns = ["twitter", "instagram", "facebook", "player.zype", "imgur", "flickr"]
+youtube_whitelist = ["YoutubeIE", "YoutubeYtBeIE", "YoutubeClipIE"]
+dailymotion_whitelist = ["DailymotionIE"]
+
+def get_class_name(ie):
+    return str(ie).split('.')[-1].split("'")[0]
+
+def substrings_not_in_string(s, subs):
+    not_in_string = [ss for ss in subs if ss in s]
+    return not not_in_string
+
+def whitlist_extractors(ie, main_name, extractor_whitelist):
+    return not main_name in ie.IE_NAME.lower() or get_class_name(ie) in youtube_whitelist
+
+FILTERED_EXTRACTORS = {ie.IE_NAME:ie for ie in yt_dlp.list_extractor_classes()
+                       if ie not in generic_extractors
+                       and substrings_not_in_string(ie.IE_NAME.lower(), porn_patterns)
+                       and whitlist_extractors(ie, "youtube", youtube_whitelist)
+                       and substrings_not_in_string(get_class_name(ie), playlist_patterns)
+                       and substrings_not_in_string(get_class_name(ie).lower(), domain_patterns)
+                       }
+
+def extract_test(extractor):
+    tests = []
+    if hasattr(extractor, "_TEST") and extractor._TEST is not None:
+        tests = [extractor._TEST["url"]]
+    elif hasattr(extractor, "_TESTS") and extractor._TESTS is not None:
+        tests = [x["url"] for x in extractor._TESTS]
+    return tests
+
+def normalize_domain(domain):
+  domain = domain.lower()
+  if domain.startswith("www."):
+        domain = domain[4:]
+  return domain
+
+def normalize_url(url):
+    normalized_url = unicodedata.normalize('NFKC', url)
+    return normalized_url
+
+def extract_domain(url):
+    try:
+        parsed_url = urlparse(normalize_url(url))
+        domain = parsed_url.netloc
+        return normalize_domain(domain)
+    except Exception as e:
+        return ""
+
+
+DOMAIN_IES_DICT = {}
+
+for extractor in FILTERED_EXTRACTORS.values():
+    for url in extract_test(extractor):
+        domain = extract_domain(url)
+        if domain == "":
+            continue
+        if domain in DOMAIN_IES_DICT:
+            if extractor not in DOMAIN_IES_DICT[domain]:
+                DOMAIN_IES_DICT[domain] = DOMAIN_IES_DICT[domain] + [extractor]
+        else:
+            DOMAIN_IES_DICT[domain] = [extractor]
+
+
+def is_link_suitable(link, extractors):
+    """Check if link is valid given an extractor."""
+    try:
+        return any([ie.suitable(link) for ie in extractors])
+    except:
+        return False
+
+def is_link_valid(link, domain_dict):
+    """Check if link is valid given a list of extractors."""
+    is_valid = False
+    domain = extract_domain(link)
+    if domain in domain_dict:
+      is_valid = is_link_suitable(link, domain_dict[domain])
+    return is_valid
+
+def valid_video_platform_link(link):
+    """Check if link is a valid video platform link."""
+    return is_link_valid(link.get("url", ""), DOMAIN_IES_DICT)
+
+def extract_video_platform_from_links(links):
+    filtered_links = [{"url": link["url"], "alt": link.get("text", "")} for link in links if valid_video_platform_link(link)]
+    return filtered_links
 
 def valid_video_link(link):
     valid_video = any(
@@ -127,6 +245,8 @@ def extract_documents_from_links(links, document_type):
         return extract_text_from_links(links)
     elif document_type == "video":
         return extract_video_from_links(links)
+    elif document_type == "video_platform":
+        return extract_video_platform_from_links(links)
     else:
         raise ValueError(f"Unknown document type {document_type}")
 
@@ -175,7 +295,10 @@ def extract_documents_from_wat(stream, document_type):
                 link["cc_filename"] = cc_filename
                 link["page_url"] = page_url
             all_links.extend(filtered_links)
+            #if len(all_links) > 1000:
+            #    return all_links
     except Exception as e:  # pylint: disable=broad-except
+        traceback.print_exc() 
         logger.info(e)
         logger.info("A shard failed to parse")
         return []
@@ -187,16 +310,17 @@ def process_wat(path, document_type):
     """Process a single wat file"""
     begin_read = timer()
     with fsspec.open(path, "rb") as f:
-        for i in range(10):
+        retries = 1000
+        for i in range(retries):
             try:
                 tf = BytesIO(f.read())
                 break
             except Exception as ex:  # pylint: disable=broad-except
-                if i == 9:
-                    logger.info("failed 10 times, skipping ", path)
+                if i == retries-1:
+                    logger.info(f"failed {retries} times, skipping ", path)
                     return
                 logger.info(ex)
-                logger.info(f"retrying reading {i}/10")
+                logger.info(f"retrying reading {i}/{retries}")
                 time.sleep(1)
 
         for e in extract_documents_from_wat(tf, document_type):
@@ -215,22 +339,29 @@ def get_cc_wat_links(source_cc_protocol):
     elif source_cc_protocol == "http":
         fs, p = fsspec.core.url_to_fs("https://commoncrawl.org/the-data/get-started/")
         a = fs.open(p).read()
-        l = a.splitlines()
-        l = [e.decode("utf8").replace("[WARC] ", "") for e in l]
-        l = [e for e in l if "<li>s3://commoncrawl/crawl-data/" in e]
-        l = [
-            e.split(" ")[0].replace("<li>s3://commoncrawl/", "https://data.commoncrawl.org/").replace("<wbr>", "")
-            for e in l
-        ]
-        l = [(e + "/wat.paths.gz").replace("//wat", "/wat") for e in l]
-        return l
+        soup = BeautifulSoup(a, 'html.parser')
+        h6_content = [e.text for e in soup.find_all('h6')][:-3]
+        h6_content= [e for e in h6_content ]
+        results = [f"https://data.commoncrawl.org/crawl-data/{e}/wat.paths.gz" for e in h6_content]
+        return results
     else:
         raise ValueError(f"Unknown protocol {source_cc_protocol}")
 
 
-def read_wat_index_file(wat_index):
-    with fsspec.open(wat_index, "rb", compression="gzip") as f:
-        wats = [a.decode("utf8").strip() for a in f.readlines()]
+def read_wat_index_file(wat_index, wat_read_retries):
+    retries = wat_read_retries
+    for i in range(retries):
+        try:
+            with fsspec.open(wat_index, "rb", compression="gzip") as f:
+                wats = [a.decode("utf8").strip() for a in f.readlines()]
+            break
+        except Exception as ex:  # pylint: disable=broad-except
+            if i == retries-1:
+                logger.info(f"failed {retries} times, skipping ", wat_index)
+                return
+            logger.info(ex)
+            logger.info(f"retrying reading {i}/{retries}")
+            time.sleep(1)
     return wats
 
 
@@ -266,7 +397,7 @@ def deduplicate_repartition_count(df, output_path, wat_count, spark, shuffle=Fal
     logger.info(f"Size: {df.count()}")
 
 
-def process_one_part(output_path, wat_index_files, build_spark, shuffle, document_type, source_cc_protocol):
+def process_one_part(output_path, wat_index_files, build_spark, shuffle, document_type, source_cc_protocol, wat_read_retries):
     """Process one part"""
     spark = build_spark()
     sc = SparkContext.getOrCreate()
@@ -279,7 +410,7 @@ def process_one_part(output_path, wat_index_files, build_spark, shuffle, documen
 
     def extract(x):
         x = list(x)
-        yield from process_wat(prefix + x[0], document_type)
+        yield from process_wat(prefix + x[0], document_type, wat_read_retries)
 
     output = wat_rdd.mapPartitions(extract)
     df = output.toDF(["uid", "url", "alt", "cc_filename", "page_url"])
@@ -297,7 +428,7 @@ def get_last_successful_part(output_path):
 
 
 def process_multi_part(
-    output_path, wat_index_files, build_spark, multipart, shuffle, resume, document_type, source_cc_protocol
+    output_path, wat_index_files, build_spark, multipart, shuffle, resume, document_type, source_cc_protocol, wat_read_retries
 ):
     """Process multi part"""
     if resume:
@@ -314,7 +445,7 @@ def process_multi_part(
         part_path = f"{output_path}/part_{i}"
         part_paths.append(part_path)
         logger.info(f"Processing part {i} from {start} to {end} into {part_path}")
-        process_one_part(part_path, wat_index_files[start:end], build_spark, False, document_type, source_cc_protocol)
+        process_one_part(part_path, wat_index_files[start:end], build_spark, False, document_type, source_cc_protocol, wat_read_retries)
 
     spark = build_spark()
     logger.info("Merging parts")
@@ -346,6 +477,7 @@ def cc2dataset(
     spark_builder=None,
     document_type="image",
     source_cc_protocol="s3",
+    wat_read_retries=1000,
 ):
     """Convert common crawl to image caption set"""
 
@@ -380,10 +512,10 @@ def cc2dataset(
             wat_index_files = f.read().splitlines()
 
     if multipart is None:
-        process_one_part(output_path, wat_index_files, build_spark, shuffle, document_type, source_cc_protocol)
+        process_one_part(output_path, wat_index_files, build_spark, shuffle, document_type, source_cc_protocol, wat_read_retries)
     else:
         process_multi_part(
-            output_path, wat_index_files, build_spark, multipart, shuffle, resume, document_type, source_cc_protocol
+            output_path, wat_index_files, build_spark, multipart, shuffle, resume, document_type, source_cc_protocol, wat_read_retries
         )
 
 
