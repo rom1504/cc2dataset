@@ -348,8 +348,8 @@ def get_cc_wat_links(source_cc_protocol):
         raise ValueError(f"Unknown protocol {source_cc_protocol}")
 
 
-def read_wat_index_file(wat_index):
-    retries = 1000
+def read_wat_index_file(wat_index, wat_read_retries):
+    retries = wat_read_retries
     for i in range(retries):
         try:
             with fsspec.open(wat_index, "rb", compression="gzip") as f:
@@ -397,7 +397,7 @@ def deduplicate_repartition_count(df, output_path, wat_count, spark, shuffle=Fal
     logger.info(f"Size: {df.count()}")
 
 
-def process_one_part(output_path, wat_index_files, build_spark, shuffle, document_type, source_cc_protocol):
+def process_one_part(output_path, wat_index_files, build_spark, shuffle, document_type, source_cc_protocol, wat_read_retries):
     """Process one part"""
     spark = build_spark()
     sc = SparkContext.getOrCreate()
@@ -410,7 +410,7 @@ def process_one_part(output_path, wat_index_files, build_spark, shuffle, documen
 
     def extract(x):
         x = list(x)
-        yield from process_wat(prefix + x[0], document_type)
+        yield from process_wat(prefix + x[0], document_type, wat_read_retries)
 
     output = wat_rdd.mapPartitions(extract)
     df = output.toDF(["uid", "url", "alt", "cc_filename", "page_url"])
@@ -428,7 +428,7 @@ def get_last_successful_part(output_path):
 
 
 def process_multi_part(
-    output_path, wat_index_files, build_spark, multipart, shuffle, resume, document_type, source_cc_protocol
+    output_path, wat_index_files, build_spark, multipart, shuffle, resume, document_type, source_cc_protocol, wat_read_retries
 ):
     """Process multi part"""
     if resume:
@@ -445,7 +445,7 @@ def process_multi_part(
         part_path = f"{output_path}/part_{i}"
         part_paths.append(part_path)
         logger.info(f"Processing part {i} from {start} to {end} into {part_path}")
-        process_one_part(part_path, wat_index_files[start:end], build_spark, False, document_type, source_cc_protocol)
+        process_one_part(part_path, wat_index_files[start:end], build_spark, False, document_type, source_cc_protocol, wat_read_retries)
 
     spark = build_spark()
     logger.info("Merging parts")
@@ -477,6 +477,7 @@ def cc2dataset(
     spark_builder=None,
     document_type="image",
     source_cc_protocol="s3",
+    wat_read_retries=1000,
 ):
     """Convert common crawl to image caption set"""
 
@@ -511,10 +512,10 @@ def cc2dataset(
             wat_index_files = f.read().splitlines()
 
     if multipart is None:
-        process_one_part(output_path, wat_index_files, build_spark, shuffle, document_type, source_cc_protocol)
+        process_one_part(output_path, wat_index_files, build_spark, shuffle, document_type, source_cc_protocol, wat_read_retries)
     else:
         process_multi_part(
-            output_path, wat_index_files, build_spark, multipart, shuffle, resume, document_type, source_cc_protocol
+            output_path, wat_index_files, build_spark, multipart, shuffle, resume, document_type, source_cc_protocol, wat_read_retries
         )
 
 
